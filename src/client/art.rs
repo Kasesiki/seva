@@ -1,0 +1,257 @@
+use std::{collections::HashMap, sync::LazyLock};
+
+use once_cell::sync::OnceCell;
+use ratatui::{
+    buffer::Buffer,
+    layout::{Margin, Rect},
+};
+use sysinfo::System;
+
+#[derive(Debug, Clone)]
+struct OsIcon {
+    name: &'static str,
+    logo: [&'static str; 20],
+    color: Vec<Color>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Color {
+    char: char,
+    color: ratatui::style::Color,
+}
+
+static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
+    [
+        OsIcon {
+            name: "ubuntu",
+            logo: [
+                "                             ....              ",
+                "              $2.',:clooo:  $1.:looooo:.       ",
+                "           $2.;looooooooc  $1.oooooooooo'      ",
+                "        $2.;looooool:,''.  $1:ooooooooooc      ",
+                "       $2;looool;.         $1'oooooooooo,      ",
+                "      $2;clool'             $1.cooooooc.  $2,, ",
+                "         $2...                $1......  $2.:oo,",
+                "  $1.;clol:,.                        $2.loooo' ",
+                " $1:ooooooooo,                        $2'ooool ",
+                "$1'ooooooooooo.                        $2loooo.",
+                "$1'ooooooooool                         $2coooo.",
+                " $1,loooooooc.                        $2.loooo.",
+                "   $1.,;;;'.                          $2;ooooc ",
+                "       $2...                         $2,ooool. ",
+                "    $2.cooooc.              $1..',,'.  $2.cooo.",
+                "      $2;ooooo:.           $1;oooooooc.  $2:l. ",
+                "       $2.coooooc,..      $1coooooooooo.       ",
+                "         $2.:ooooooolc:. $1.ooooooooooo'       ",
+                "           $2.':loooooo;  $1,oooooooooc        ",
+                "               $2..';::c'  $1.;loooo:'         ",
+            ],
+            color: Vec::from(&[
+                Color {
+                    char: 'o',
+                    color: ratatui::style::Color::Red,
+                },
+                Color {
+                    char: '\\',
+                    color: ratatui::style::Color::Green,
+                },
+            ]),
+        },
+        OsIcon {
+            name: "debian",
+            logo: [
+                "                                               ",
+                "                                               ",
+                "            $2_,met$$$$$$$$$$gg.               ",
+                "        ,g$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$P.     ",
+                "    ,g$$$$P\"\"       \"\"\"Y$$$$.\".          ",
+                "    ,$$$$P'              `$$$$$$.              ",
+                "    ',$$$$P       ,ggs.     `$$$$b:            ",
+                "    `d$$$$'     ,$P\"'   $1.$2    $$$$$$       ",
+                "    $$$$P      d$'     $1,$2    $$$$P          ",
+                "    $$$$:      $$$.   $1-$2    ,d$$$$'         ",
+                "    $$$$;      Y$b._   _,d$P'                  ",
+                "    Y$$$$.    $1`.$2`\"Y$$$$$$$$P\"'           ",
+                "    `$$$$b      $1\"-.__                       ",
+                "    $2`Y$$$$b                                  ",
+                "    `Y$$$$.                                    ",
+                "        `$$$$b.                                ",
+                "        `Y$$$$b.                               ",
+                "            `\"Y$$b._                          ",
+                "                `\"\"\"\"                      ",
+                "                                               ",
+            ],
+            color: Vec::from(&[
+                Color {
+                    char: '$',
+                    color: ratatui::style::Color::Red,
+                },
+                Color {
+                    char: '\\',
+                    color: ratatui::style::Color::Green,
+                },
+            ]),
+        },
+        OsIcon {
+            name: "alpine",
+            logo: [
+                "                       -`                 ",
+                "                      .o+`                ",
+                "                     `ooo/                ",
+                "                    `+oooo:               ",
+                "                   `+oooooo:              ",
+                "                   -+oooooo+:             ",
+                "                 `/:-:++oooo+:            ",
+                "                `/++++/+++++++:           ",
+                "               `/++++++++++++++:          ",
+                "              `/+++o$2oooooooo$1`         ",
+                "             ./$2ooosssso++osssss`        ",
+                "            .oossssso-````/ossssss+`      ",
+                "           -osssssso.      :ssssssso.     ",
+                "          :osssssss/        osssso+++.    ",
+                "         /ossssssss/        +ssssooo/-    ",
+                "       `/ossssso+/:-        -:/+osssso+-  ",
+                "      `+sso+:-`                 `.-/+oso: ",
+                "     `++:.                           `-/+/",
+                "     .`                                 `/",
+                "                                          ",
+            ],
+            color: Vec::from(&[]),
+        },
+        OsIcon {
+            name: "arch",
+            logo: [
+                "                       -`                 ",
+                "                      .o+`                ",
+                "                     `ooo/                ",
+                "                    `+oooo:               ",
+                "                   `+oooooo:              ",
+                "                   -+oooooo+:             ",
+                "                 `/:-:++oooo+:            ",
+                "                `/++++/+++++++:           ",
+                "               `/++++++++++++++:          ",
+                "              `/+++o$2oooooooo$1`         ",
+                "             ./$2ooosssso++osssss`        ",
+                "            .oossssso-````/ossssss+`      ",
+                "           -osssssso.      :ssssssso.     ",
+                "          :osssssss/        osssso+++.    ",
+                "         /ossssssss/        +ssssooo/-    ",
+                "       `/ossssso+/:-        -:/+osssso+-  ",
+                "      `+sso+:-`                 `.-/+oso: ",
+                "     `++:.                           `-/+/",
+                "     .`                                 `/",
+                "                                          ",
+            ],
+            color: Vec::from(&[Color {
+                char: 'o',
+                color: ratatui::style::Color::Blue,
+            }]),
+        },
+        OsIcon {
+            name: "centos",
+            logo: [
+                "                 .. ",
+                "               .PLTJ.",
+                "              <><><><>",
+                "     $2KKSSV' 4KKK $1LJ$4 KKKL.'VSSKK",
+                "     $2KKV' 4KKKKK $1LJ$4 KKKKAL 'VKK",
+                "     $2V' ' 'VKKKK $1LJ$4 KKKKV' ' 'V",
+                "     $2.4MA.' 'VKK $1LJ$4 KKV' '.4Mb.",
+                "   $4. $2KKKKKA.' 'V $1LJ$4 V' '.4KKKKK $3.",
+                " $4.4D $2KKKKKKKA.'' $1LJ$4 ''.4KKKKKKK $3FA.",
+                "$4<QDD ++++++++++++  $3++++++++++++ GFD>",
+                " '$4VD $3KKKKKKKK'.. $2LJ $1..'KKKKKKKK $3FV",
+                "   $4' $3VKKKKK'. .4 $2LJ $1K. .'KKKKKV $3'",
+                "      $3'VK'. .4KK $2LJ $1KKA. .'KV'",
+                "     $3A. . .4KKKK $2LJ $1KKKKA. . .4",
+                "     $3KKA. 'KKKKK $2LJ $1KKKKK' .4KK",
+                "     $3KKSSA. VKKK $2LJ $1KKKV .4SSKK",
+                "              $2<><><><>",
+                "               $2'MKKM'",
+                "                 $2''",
+                "",
+            ],
+            color: Vec::from(&[]),
+        },
+        OsIcon {
+            name: "fedora",
+            logo: [
+                "             .',;::::;,'.",
+                "         .';:cccccccccccc:;,.",
+                "      .;cccccccccccccccccccccc;.",
+                "    .:cccccccccccccccccccccccccc:.",
+                "  .;ccccccccccccc;$2.:dddl:.$1;ccccccc;.",
+                " .:ccccccccccccc;$2OWMKOOXMWd$1;ccccccc:.",
+                ".:ccccccccccccc;$2KMMc$1;cc;$2xMMc$1;ccccccc:.",
+                ",cccccccccccccc;$2MMM.$1;cc;$2;WW:$1;cccccccc,",
+                ":cccccccccccccc;$2MMM.$1;cccccccccccccccc:",
+                ":ccccccc;$2oxOOOo$1;$2MMM000k.$1;cccccccccccc:",
+                "cccccc;$20MMKxdd:$1;$2MMMkddc.$1;cccccccccccc;",
+                "ccccc;$2XMO'$1;cccc;$2MMM.$1;cccccccccccccccc'",
+                "ccccc;$2MMo$1;ccccc;$2MMW.$1;ccccccccccccccc;",
+                "ccccc;$20MNc.$1ccc$2.xMMd$1;ccccccccccccccc;",
+                "cccccc;$2dNMWXXXWM0:$1;cccccccccccccc:,",
+                "cccccccc;$2.:odl:.$1;cccccccccccccc:,.",
+                "ccccccccccccccccccccccccccccc:'.",
+                ":ccccccccccccccccccccccc:;,..",
+                " ':cccccccccccccccc::;,.",
+                "",
+            ],
+            color: Vec::from(&[]),
+        },
+    ]
+});
+
+static ICON_MAP: OnceCell<HashMap<String, OsIcon>> = OnceCell::new();
+
+pub fn init_art() {
+    let mut temp = HashMap::new();
+    for icon in OS_ICONS.clone() {
+        temp.insert(String::from(icon.name), icon.clone());
+    }
+    ICON_MAP.set(temp).unwrap();
+}
+
+#[allow(clippy::cast_possible_truncation)]
+pub fn render_logo(area: Rect, buf: &mut Buffer) {
+    let area = area.inner(Margin {
+        vertical: 0,
+        horizontal: 2,
+    });
+    for i in 1..=48 {
+        let cell = &mut buf[(area.left() + i, area.top() + 1)];
+        cell.set_char('-');
+        let cell = &mut buf[(area.left() + i, area.top() + 22)];
+        cell.set_char('-');
+    }
+    for i in 2..=21 {
+        let cell = &mut buf[(area.left(), area.top() + i)];
+        cell.set_char('|');
+        let cell = &mut buf[(area.left() + 48, area.top() + i)];
+        cell.set_char('|');
+    }
+    let icon = ICON_MAP
+        .get()
+        .unwrap()
+        .get(&System::distribution_id())
+        .expect(&format!("d: {}", System::distribution_id()));
+    for (y, line) in icon.logo.iter().enumerate() {
+        for (x, ch) in line.chars().enumerate() {
+            let x = area.left() + x as u16 + 1;
+            let y = area.top() + y as u16 + 2;
+            let cell: &mut ratatui::buffer::Cell = &mut buf[(x, y)];
+            let mut reset_color = ratatui::style::Color::Reset;
+            for color in &icon.color {
+                if ch == color.char {
+                    cell.set_fg(color.color);
+                } else if color.char == '\\' {
+                    reset_color = color.color;
+                }
+            }
+            if cell.fg == ratatui::style::Color::Reset {
+                cell.set_fg(reset_color);
+            }
+            cell.set_char(ch);
+        }
+    }
+}

@@ -1,0 +1,8 @@
+src/control
+src/network
+src/server
+target
+.vscode
+.codex
+allbuild.sh
+build.sh
