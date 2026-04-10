@@ -158,14 +158,13 @@ pub fn main_ui(
         .alignment(ratatui::layout::Alignment::Left)
         .block(normal_block("memory"))
         .render(memory, buf);
-
     let os_name = format!(
         "os name: {}\ncpu name: {}\nos version: {}\nkernel version: {}\nhost name: {}\ncpu arch: {}\nrunning time: {}\n{}\n",
-        System::name().unwrap(),
+        System::name().unwrap_or(String::new()),
         app.sys.cpus()[0].brand(),
-        System::os_version().unwrap(),
-        System::kernel_version().unwrap(),
-        System::host_name().unwrap(),
+        System::os_version().unwrap_or(String::new()),
+        System::kernel_version().unwrap_or(String::new()),
+        System::host_name().unwrap_or(String::from("linux")),
         System::cpu_arch(),
         sec_to_time(System::uptime()),
         app.extend.package_text
