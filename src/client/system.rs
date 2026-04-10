@@ -57,9 +57,10 @@ pub fn byte_to_string(mut byte: u64) -> String {
         }
     }
     if disklevel == 0 {
-        return format!("{}{}", byte, mems[disklevel]);
+        return format!("{}{}", byte, mems[disklevel].trim());
     }
-    format!("{}{}{}{}", byte, mems[disklevel], ider, mems[disklevel - 1])
+    format!("{}{}{}{}", byte, mems[disklevel], ider, mems[disklevel - 1].trim())
+
 }
 
 pub fn sec_to_time(mut sec: u64) -> String {

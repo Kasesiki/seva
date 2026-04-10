@@ -2,18 +2,18 @@ use queue::Queue;
 use ratatui::{
     Terminal,
     buffer::Buffer,
-    layout::{Constraint, Flex, Layout, Rect},
+    layout::{Constraint, Flex, Layout, Rect, Spacing},
     style::{Color, Style, Stylize},
-    symbols::{Marker, border},
-    text::Text,
+    symbols::{self, Marker, border, merge::MergeStrategy},
+    text::{Line, Text},
     widgets::{
-        Axis, Block, Chart, Clear, Dataset, GraphType, List, Padding, Paragraph, Widget, Wrap,
+        Axis, Block, Chart, Clear, Dataset, GraphType, LineGauge, List, Padding, Paragraph, Widget, Wrap
     },
 };
 use std::{io, vec};
 use sysinfo::System;
 
-use crate::client::system::{self, byte_to_string, sec_to_time};
+use crate::client::system::{ byte_to_string, sec_to_time};
 
 use super::{
     art,
@@ -140,24 +140,37 @@ pub fn main_ui(
         .areas(art);
     let [memory, os] = Layout::vertical([Constraint::Max(7), Constraint::Fill(0)]).areas(memory_os);
     normal_block("art").render(cpu, buf);
-    let mut free_memory = app.sys.available_memory();
-    if cfg!(windows) {
-        free_memory = app.sys.free_memory();
-    }
 
-    let memory_text = format!(
-        "total memory: {}\nmemory free: {}\nused memory: {}\nfree swap: {}\nactive swap: {}",
-        &system::byte_to_string(app.sys.total_memory()),
-        &system::byte_to_string(free_memory),
-        &system::byte_to_string(app.sys.used_memory()),
-        &system::byte_to_string(app.sys.free_swap()),
-        &system::byte_to_string(app.sys.used_swap())
-    );
-    Paragraph::new(memory_text)
-        .wrap(Wrap { trim: true })
-        .alignment(ratatui::layout::Alignment::Left)
-        .block(normal_block("memory"))
-        .render(memory, buf);
+    let [memory, swap] = Layout::vertical([Constraint::Length(3), Constraint::Length(3)])
+    .spacing(Spacing::Overlap(1)).areas(memory);
+
+    LineGauge::default()
+    .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
+    .filled_style(Style::new().blue().on_black().bold())
+    .filled_symbol(symbols::line::DOUBLE_VERTICAL)
+    .unfilled_symbol("")
+    .label(Line::default())
+    .ratio(app.sys.used_memory() as f64 / app.sys.total_memory() as f64)
+    .render(memory, buf);
+    Paragraph::new(format!("{}/{} ", byte_to_string(app.sys.used_memory()), byte_to_string(app.sys.total_memory())))
+    .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
+    .alignment(ratatui::layout::HorizontalAlignment::Right)
+    .render(memory, buf);
+
+    LineGauge::default()
+    .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
+    .filled_style(Style::new().blue().on_black().bold())
+    .filled_symbol(symbols::line::DOUBLE_VERTICAL)
+    .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
+    .label(Line::default())
+    .ratio(app.sys.used_swap() as f64 / app.sys.total_swap() as f64)
+    .render(swap, buf);
+
+    Paragraph::new(format!("{}/{} ", byte_to_string(app.sys.used_swap()), byte_to_string(app.sys.total_swap())))
+    .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
+    .alignment(ratatui::layout::HorizontalAlignment::Right)
+    .render(swap, buf);
+
     let os_name = format!(
         "os name: {}\ncpu name: {}\nos version: {}\nkernel version: {}\nhost name: {}\ncpu arch: {}\nrunning time: {}\n{}\n",
         System::name().unwrap_or(String::new()),
