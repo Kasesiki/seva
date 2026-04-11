@@ -204,7 +204,7 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
 
 static NORMAL_ICON: LazyLock<OsIcon> = LazyLock::new(|| {
     OsIcon {
-        name: "fedora",
+        name: "",
         logo: [
             "",
             "",
