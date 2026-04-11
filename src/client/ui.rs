@@ -18,13 +18,12 @@ use crate::client::system::{byte_to_string, sec_to_time};
 
 use super::{
     art,
-    client::{self},
 };
 
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
 
 pub fn trend_ui(
-    app: &client::App,
+    app: &crate::App,
     area: ratatui::prelude::Rect,
     buf: &mut ratatui::prelude::Buffer,
 ) {
@@ -102,7 +101,7 @@ pub fn trend_ui(
 }
 
 pub fn main_ui(
-    app: &client::App,
+    app: &crate::App,
     area: ratatui::prelude::Rect,
     buf: &mut ratatui::prelude::Buffer,
 ) {

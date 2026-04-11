@@ -1,88 +1,17 @@
-use std::{
-    collections::HashMap,
-    io::{self},
-    time::Duration,
-};
 
-use crossterm::event::{self, EventStream, KeyCode, KeyEvent, KeyEventKind};
-use futures::{FutureExt, StreamExt};
-use ratatui::{Frame, widgets::Widget};
-use sysinfo::{Disks, Networks, Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+use sysinfo::{Disks, Pid, Process};
 
-use crate::client::system::{Config, SystemLine, from_osstring};
-
+use crate::App;
+use crate::client::system::{from_osstring};
+use crate::client::system::command_runs;
 use super::{
-    server::{self, Serve},
+    server::{self},
     // sftp::{self, FtpStruct},
-    ui::{self, ClientState, Tui},
+    ui::{ClientState},
 };
 
 pub static MENU_TITLES: [&str; 3] = ["Home", "Control", "Terminal"];
-
-pub async fn run(mut main: App, mut tui: Tui) -> anyhow::Result<()> {
-    let mut tick = tokio::time::interval(Duration::from_millis(1000));
-    //let mut fan = tokio::time::interval(Duration::from_millis(16));
-
-    let mut reader = EventStream::new();
-
-    // let mut effects: EffectManager<()> = EffectManager::default();
-    // let timer = (1000, Interpolation::Linear);
-    // let fg_shift = [120.0, 25.0, 25.0];
-    // let bg_shift = [-40.0, -50.0, -50.0];
-
-    // let fade_effect = fx::hsl_shift(Some(fg_shift), Some(bg_shift), timer)
-    //     .with_pattern(DiagonalPattern::bottom_left_to_top_right());
-    // let fx = fx::freeze_at(0.5, false, fade_effect);
-
-    // effects.add_effect(fx);
-
-    // let mut last_frame = Instant::now();
-    loop {
-        let next = reader.next().fuse();
-        tokio::select! {
-            event = next => {
-                if let Some(Ok(event::Event::Key(key))) = event {
-                    handle_key(&mut main, key)?;
-                }
-            }
-            _ = tick.tick() => {
-                main.flash()?;
-            }
-            // _ = fan.tick() => {
-
-            // }
-        };
-        if main.exit {
-            break;
-        }
-        // let elapsed = last_frame.elapsed();
-        // last_frame = Instant::now();
-        tui.draw(|frame| {
-            main.handle_ui(frame);
-
-            //let screen_area = frame.area();
-            //effects.process_effects(elapsed.into(), frame.buffer_mut(), screen_area);
-        })?;
-    }
-    ratatui::restore();
-    tui.show_cursor()?;
-
-    Ok(())
-}
-
-unsafe impl Send for App {}
-pub struct App {
-    pub state: ui::ClientState,
-    pub exit: bool,
-    pub sys: System,
-    pub extend: Extend,
-    pub sys_line: SystemLine,
-    // pub sftp: FtpStruct,
-    pub err: Option<anyhow::Error>,
-    pub config: Config,
-    pub service: Serve,
-    pub network: Networks,
-}
 
 #[derive(Default)]
 pub struct Extend {
@@ -99,10 +28,10 @@ impl Extend {
             package_text: String::from("packages: "),
             ..Default::default()
         };
-        if let Ok(n) = crate::command_runs(&[&["dpkg", "-l"], &["grep", "ii"], &["wc", "-l"]]) {
+        if let Ok(n) = command_runs(&[&["dpkg", "-l"], &["grep", "ii"], &["wc", "-l"]]) {
             result.package_text += &format!("{} (dpkg), ", n.trim());
         }
-        if let Ok(n) = crate::command_runs(&[&["pacman", "-Q"], &["wc", "-l"]]) {
+        if let Ok(n) = command_runs(&[&["pacman", "-Q"], &["wc", "-l"]]) {
             result.package_text += &format!("{} (pacman), ", n.trim());
         }
         result.package_text = result.package_text.trim_end_matches(", ").to_string();
@@ -111,99 +40,8 @@ impl Extend {
     }
 }
 
-impl App {
-    pub fn new() -> Result<App, anyhow::Error> {
-        let config = Config::new();
-        Ok(App {
-            state: ui::ClientState::Main,
-            exit: false,
-            sys: System::new_all(),
-            sys_line: SystemLine::new(),
-            // sftp: FtpStruct::new(),
-            err: None,
-            extend: Extend::new()?,
-            config: config.clone(),
-            service: Serve::new(config.services),
-            network: Networks::new_with_refreshed_list(),
-        })
-    }
 
-    pub fn handle_ui(&self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
-    }
-
-    pub fn destory(self) -> io::Result<()> {
-        Ok(())
-    }
-
-    pub fn flash(&mut self) -> anyhow::Result<()> {
-        if self.extend.space {
-            return Ok(());
-        }
-        self.extend.disks.iter_mut().for_each(|disk| {
-            disk.refresh();
-        });
-        self.network = Networks::new_with_refreshed_list();
-        self.sys.refresh_cpu_usage();
-        self.sys.refresh_memory();
-        self.merge_process();
-        self.sys_line.swap_data.force_queue(
-            format!(
-                "{:.2}",
-                (self.sys.used_swap() as f64 / self.sys.total_swap() as f64) * 100.0
-            )
-            .parse::<f64>()?,
-        );
-        self.sys_line
-            .cpu_data
-            .force_queue(self.sys.global_cpu_usage().into());
-        let us_memory = self.sys.used_memory() as f64;
-        let to_memory = self.sys.total_memory() as f64;
-        self.sys_line
-            .memory_data
-            .force_queue(format!("{:.2}", (us_memory / to_memory) * 100.0).parse::<f64>()?);
-        Ok(())
-    }
-
-    pub fn merge_process(&mut self) {
-        self.sys.refresh_processes_specifics(
-            ProcessesToUpdate::All,
-            true,
-            ProcessRefreshKind::everything(),
-        );
-        let mut memory_verify: HashMap<String, MutProcess> = HashMap::new();
-        for item in self.sys.processes().values() {
-            if item.thread_kind().is_some() {
-                continue;
-            }
-            let item = MutProcess::from_process(item);
-            let mem = item.memory;
-            let cpu_usage = item.cpu_usage;
-
-            if let Some(o2) = memory_verify.get_mut(&item.cmd) {
-                o2.cpu_usage += cpu_usage;
-                o2.memory += mem;
-                continue;
-            } else {
-                memory_verify.insert(item.cmd.clone(), item);
-            }
-        }
-
-        self.extend.processes = memory_verify.into_values().collect();
-
-        if self.extend.trend_sort == "mem" {
-            self.extend
-                .processes
-                .sort_by(|k, v| v.memory.cmp(&k.memory));
-        } else {
-            self.extend
-                .processes
-                .sort_by(|k, v| v.cpu_usage.total_cmp(&k.cpu_usage));
-        }
-    }
-}
-
-fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
+pub fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
     if key.kind == KeyEventKind::Press {
         if let Some(_) = &main.err
             && key.code == KeyCode::Enter
@@ -231,18 +69,6 @@ fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
         }
     }
     Ok(())
-}
-
-impl Widget for &App {
-    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
-    where
-        Self: Sized,
-    {
-        crate::client::stream::main_ui_draw(self, area, buf);
-        if let Some(err) = &self.err {
-            ui::set_alert(area, buf, &err.to_string());
-        }
-    }
 }
 
 pub struct MutProcess {

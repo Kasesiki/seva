@@ -1,5 +1,4 @@
-use crate::client::{
-    client, server,
+use crate::client::{server,
     ui::{ClientState, main_ui, trend_ui},
 };
 
@@ -9,7 +8,7 @@ pub enum Event<I> {
 }
 
 pub fn main_ui_draw(
-    app: &client::App,
+    app: &crate::App,
     area: ratatui::prelude::Rect,
     buf: &mut ratatui::prelude::Buffer,
 ) {
