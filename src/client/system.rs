@@ -1,3 +1,5 @@
+use std::ffi::{OsStr, OsString};
+
 use queue::Queue;
 
 pub struct SystemLine {
@@ -59,8 +61,13 @@ pub fn byte_to_string(mut byte: u64) -> String {
     if disklevel == 0 {
         return format!("{}{}", byte, mems[disklevel].trim());
     }
-    format!("{}{}{}{}", byte, mems[disklevel], ider, mems[disklevel - 1].trim())
-
+    format!(
+        "{}{}{}{}",
+        byte,
+        mems[disklevel],
+        ider,
+        mems[disklevel - 1].trim()
+    )
 }
 
 pub fn sec_to_time(mut sec: u64) -> String {
@@ -92,4 +99,11 @@ pub fn sec_to_time(mut sec: u64) -> String {
         ider,
         times[timelevel - 1]
     )
+}
+
+pub fn from_osstring(cmd: &[OsString]) -> String {
+    cmd.join(OsStr::new(""))
+        .to_string_lossy()
+        .trim()
+        .to_string()
 }

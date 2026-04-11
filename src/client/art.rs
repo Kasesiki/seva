@@ -202,6 +202,35 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
     ]
 });
 
+static NORMAL_ICON: LazyLock<OsIcon> = LazyLock::new(|| {
+    OsIcon {
+        name: "fedora",
+        logo: [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ],
+        color: Vec::from(&[]),
+    }
+}); 
+
 static ICON_MAP: OnceCell<HashMap<String, OsIcon>> = OnceCell::new();
 
 pub fn init_art() {
@@ -234,7 +263,7 @@ pub fn render_logo(area: Rect, buf: &mut Buffer) {
         .get()
         .unwrap()
         .get(&System::distribution_id())
-        .expect(&format!("d: {}", System::distribution_id()));
+        .unwrap_or(&NORMAL_ICON);
     for (y, line) in icon.logo.iter().enumerate() {
         for (x, ch) in line.chars().enumerate() {
             let x = area.left() + x as u16 + 1;

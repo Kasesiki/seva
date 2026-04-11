@@ -7,13 +7,10 @@ use ratatui::{
     widgets::{List, Paragraph, Tabs, Widget},
 };
 
-use super::{
-    client::{self, App},
-    ui::{ClientState, normal_block},
-};
+use super::ui::{ClientState, normal_block};
 
 pub fn main_ui(
-    app: &client::App,
+    app: &crate::client::client::App,
     area: ratatui::prelude::Rect,
     buf: &mut ratatui::prelude::Buffer,
 ) {
@@ -32,7 +29,7 @@ pub fn main_ui(
         .render(help, buf);
 }
 
-pub fn main_event(app: &mut App, key: KeyEvent) -> Result<(), io::Error> {
+pub fn main_event(app: &mut crate::client::client::App, key: KeyEvent) -> Result<(), io::Error> {
     match key.code {
         KeyCode::Char('n') => {
             if app.service.statu != ServeStatu::New {

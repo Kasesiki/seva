@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    ffi::{OsStr, OsString},
     io::{self},
     time::Duration,
 };
@@ -10,10 +9,9 @@ use futures::{FutureExt, StreamExt};
 use ratatui::{Frame, widgets::Widget};
 use sysinfo::{Disks, Networks, Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System};
 
-use crate::client::system::{Config, SystemLine};
+use crate::client::system::{Config, SystemLine, from_osstring};
 
 use super::{
-    art,
     server::{self, Serve},
     // sftp::{self, FtpStruct},
     ui::{self, ClientState, Tui},
@@ -21,16 +19,7 @@ use super::{
 
 pub static MENU_TITLES: [&str; 3] = ["Home", "Control", "Terminal"];
 
-pub async fn main() -> anyhow::Result<()> {
-    art::init_art();
-
-    let app = App::new()?;
-    let terminal: ui::Tui = ratatui::init();
-    run(app, terminal).await?;
-    Ok(())
-}
-
-async fn run(mut main: App, mut tui: Tui) -> anyhow::Result<()> {
+pub async fn run(mut main: App, mut tui: Tui) -> anyhow::Result<()> {
     let mut tick = tokio::time::interval(Duration::from_millis(1000));
     //let mut fan = tokio::time::interval(Duration::from_millis(16));
 
@@ -106,8 +95,10 @@ pub struct Extend {
 
 impl Extend {
     pub fn new() -> anyhow::Result<Extend> {
-        let mut result = Extend::default();
-        result.package_text = String::from("packages: ");
+        let mut result = Extend {
+            package_text: String::from("packages: "),
+            ..Default::default()
+        };
         if let Ok(n) = crate::command_runs(&[&["dpkg", "-l"], &["grep", "ii"], &["wc", "-l"]]) {
             result.package_text += &format!("{} (dpkg), ", n.trim());
         }
@@ -117,44 +108,6 @@ impl Extend {
         result.package_text = result.package_text.trim_end_matches(", ").to_string();
         result.disks = Disks::new_with_refreshed_list();
         Ok(result)
-    }
-}
-
-pub struct MutProcess {
-    pub pid: Pid,
-    pub cmd: String,
-    pub cpu_usage: f32,
-    pub memory: u64,
-    pub virtual_memory: u64,
-    pub run_time: u64,
-    pub name: String,
-}
-
-pub fn from_osstring(cmd: &[OsString]) -> String {
-    cmd.join(OsStr::new(""))
-        .to_string_lossy()
-        .trim()
-        .to_string()
-}
-
-impl MutProcess {
-    pub fn from_process(process: &Process) -> MutProcess {
-        let cmd;
-        if let Some(pat) = process.exe() {
-            cmd = pat.to_string_lossy().to_string();
-        } else {
-            cmd = from_osstring(process.cmd());
-        }
-
-        MutProcess {
-            pid: process.pid(),
-            cmd,
-            cpu_usage: process.cpu_usage(),
-            memory: process.memory(),
-            virtual_memory: process.virtual_memory(),
-            run_time: process.run_time(),
-            name: process.name().to_string_lossy().to_string(),
-        }
     }
 }
 
@@ -194,13 +147,16 @@ impl App {
         self.sys.refresh_cpu_usage();
         self.sys.refresh_memory();
         self.merge_process();
-        let cpu_us: f64 = self.sys.global_cpu_usage().into();
-        let swap_us: f64 = self.sys.used_swap() as f64;
-        let swap_total: f64 = self.sys.total_swap() as f64;
+        self.sys_line.swap_data.force_queue(
+            format!(
+                "{:.2}",
+                (self.sys.used_swap() as f64 / self.sys.total_swap() as f64) * 100.0
+            )
+            .parse::<f64>()?,
+        );
         self.sys_line
-            .swap_data
-            .force_queue(format!("{:.2}", (swap_us / swap_total) * 100.0).parse::<f64>()?);
-        self.sys_line.cpu_data.force_queue(cpu_us);
+            .cpu_data
+            .force_queue(self.sys.global_cpu_usage().into());
         let us_memory = self.sys.used_memory() as f64;
         let to_memory = self.sys.total_memory() as f64;
         self.sys_line
@@ -255,7 +211,7 @@ fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
             main.err = None;
         }
         if key.code == KeyCode::Tab {
-            rset_state(&mut main.state);
+            crate::client::stream::reset_state(&mut main.state);
         }
 
         let state = &main.state;
@@ -282,26 +238,40 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        ui::main_ui_draw(self, area, buf);
+        crate::client::stream::main_ui_draw(self, area, buf);
         if let Some(err) = &self.err {
             ui::set_alert(area, buf, &err.to_string());
         }
     }
 }
 
-pub fn rset_state(state: &mut ClientState) {
-    match *state {
-        ClientState::Main => {
-            *state = ClientState::Trend;
+pub struct MutProcess {
+    pub pid: Pid,
+    pub cmd: String,
+    pub cpu_usage: f32,
+    pub memory: u64,
+    pub virtual_memory: u64,
+    pub run_time: u64,
+    pub name: String,
+}
+
+impl MutProcess {
+    pub fn from_process(process: &Process) -> MutProcess {
+        let cmd;
+        if let Some(pat) = process.exe() {
+            cmd = pat.to_string_lossy().to_string();
+        } else {
+            cmd = from_osstring(process.cmd());
         }
-        ClientState::Trend => {
-            *state = ClientState::Serve;
-        }
-        // ClientState::Sftp => {
-        //     *state = ClientState::Serve;
-        // }
-        ClientState::Serve => {
-            *state = ClientState::Main;
+
+        MutProcess {
+            pid: process.pid(),
+            cmd,
+            cpu_usage: process.cpu_usage(),
+            memory: process.memory(),
+            virtual_memory: process.virtual_memory(),
+            run_time: process.run_time(),
+            name: process.name().to_string_lossy().to_string(),
         }
     }
 }

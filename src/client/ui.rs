@@ -7,34 +7,21 @@ use ratatui::{
     symbols::{self, Marker, border, merge::MergeStrategy},
     text::{Line, Text},
     widgets::{
-        Axis, Block, Chart, Clear, Dataset, GraphType, LineGauge, List, Padding, Paragraph, Widget, Wrap
+        Axis, Block, Chart, Clear, Dataset, GraphType, LineGauge, List, Padding, Paragraph, Widget,
+        Wrap,
     },
 };
 use std::{io, vec};
 use sysinfo::System;
 
-use crate::client::system::{ byte_to_string, sec_to_time};
+use crate::client::system::{byte_to_string, sec_to_time};
 
 use super::{
     art,
     client::{self},
-    server,
 };
 
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
-
-pub fn main_ui_draw(
-    app: &client::App,
-    area: ratatui::prelude::Rect,
-    buf: &mut ratatui::prelude::Buffer,
-) {
-    match app.state {
-        ClientState::Trend => trend_ui(app, area, buf),
-        ClientState::Main => main_ui(app, area, buf),
-        // ClientState::Sftp => sftp::main_ui(app, area, buf),
-        ClientState::Serve => server::main_ui(app, area, buf),
-    }
-}
 
 pub fn trend_ui(
     app: &client::App,
@@ -114,10 +101,6 @@ pub fn trend_ui(
         .render(process, buf);
 }
 
-// pub fn system_ui(app: &client::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-
-// }
-
 pub fn main_ui(
     app: &client::App,
     area: ratatui::prelude::Rect,
@@ -128,6 +111,7 @@ pub fn main_ui(
         Layout::vertical([Constraint::Length(24), Constraint::Fill(1)]).areas(main);
     let [art, memory_os] =
         Layout::horizontal([Constraint::Length(53), Constraint::Fill(1)]).areas(art_memory_os);
+
     Paragraph::new("Welcome to SeVA!   Press 'Q' to quit SEVA")
         .alignment(ratatui::layout::Alignment::Center)
         .block(normal_block("SEVA Control"))
@@ -142,41 +126,50 @@ pub fn main_ui(
     normal_block("art").render(cpu, buf);
 
     let [memory, swap] = Layout::vertical([Constraint::Length(3), Constraint::Length(3)])
-    .spacing(Spacing::Overlap(1)).areas(memory);
+        .spacing(Spacing::Overlap(1))
+        .areas(memory);
 
     LineGauge::default()
-    .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
-    .filled_style(Style::new().blue().on_black().bold())
-    .filled_symbol(symbols::line::DOUBLE_VERTICAL)
-    .unfilled_symbol("")
-    .label(Line::default())
-    .ratio(app.sys.used_memory() as f64 / app.sys.total_memory() as f64)
-    .render(memory, buf);
-    Paragraph::new(format!("{}/{} ", byte_to_string(app.sys.used_memory()), byte_to_string(app.sys.total_memory())))
+        .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
+        .filled_style(Style::new().blue().on_black().bold())
+        .filled_symbol(symbols::line::DOUBLE_VERTICAL)
+        .unfilled_symbol("")
+        .label(Line::default())
+        .ratio(app.sys.used_memory() as f64 / app.sys.total_memory() as f64)
+        .render(memory, buf);
+    Paragraph::new(format!(
+        "{}/{} ",
+        byte_to_string(app.sys.used_memory()),
+        byte_to_string(app.sys.total_memory())
+    ))
     .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(memory, buf);
 
     LineGauge::default()
-    .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
-    .filled_style(Style::new().blue().on_black().bold())
-    .filled_symbol(symbols::line::DOUBLE_VERTICAL)
-    .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
-    .label(Line::default())
-    .ratio(app.sys.used_swap() as f64 / app.sys.total_swap() as f64)
-    .render(swap, buf);
+        .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
+        .filled_style(Style::new().blue().on_black().bold())
+        .filled_symbol(symbols::line::DOUBLE_VERTICAL)
+        .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
+        .label(Line::default())
+        .ratio(app.sys.used_swap() as f64 / app.sys.total_swap() as f64)
+        .render(swap, buf);
 
-    Paragraph::new(format!("{}/{} ", byte_to_string(app.sys.used_swap()), byte_to_string(app.sys.total_swap())))
+    Paragraph::new(format!(
+        "{}/{} ",
+        byte_to_string(app.sys.used_swap()),
+        byte_to_string(app.sys.total_swap())
+    ))
     .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(swap, buf);
 
     let os_name = format!(
         "os name: {}\ncpu name: {}\nos version: {}\nkernel version: {}\nhost name: {}\ncpu arch: {}\nrunning time: {}\n{}\n",
-        System::name().unwrap_or(String::new()),
+        System::name().unwrap_or_default(),
         app.sys.cpus()[0].brand(),
-        System::os_version().unwrap_or(String::new()),
-        System::kernel_version().unwrap_or(String::new()),
+        System::os_version().unwrap_or_default(),
+        System::kernel_version().unwrap_or_default(),
         System::host_name().unwrap_or(String::from("linux")),
         System::cpu_arch(),
         sec_to_time(System::uptime()),
