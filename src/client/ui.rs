@@ -10,7 +10,7 @@ use ratatui::{
         Axis, Block, Chart, Clear, Dataset, GraphType, List, Padding, Paragraph, Widget, Wrap,
     },
 };
-use std::{io, vec};
+use std::{io, ops::Deref, vec};
 
 use crate::client::system::{byte_to_string, sec_to_time};
 
@@ -93,17 +93,17 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
 
     art::render_logo(art, buf);
 
-    let [cpu] = Layout::vertical([Constraint::Fill(1)])
+    let [art] = Layout::vertical([Constraint::Fill(1)])
         .flex(Flex::Center)
         .areas(art);
     let [memory, os] = Layout::vertical([Constraint::Max(7), Constraint::Fill(0)]).areas(memory_os);
-    normal_block("art").render(cpu, buf);
+    normal_block("art").render(art, buf);
 
-    let [memory, swap] = Layout::vertical([Constraint::Length(3), Constraint::Length(3)])
+    let [cpu, memory, swap, ] = Layout::vertical([Constraint::Length(3), Constraint::Length(3), Constraint::Length(4)])
         .spacing(Spacing::Overlap(1))
         .areas(memory);
 
-    app.formats.mem_line.clone().render(memory, buf);
+    app.formats.mem_line.deref().render(memory, buf);
 
     Paragraph::new(format!(
         "{}/{} ",
@@ -114,7 +114,7 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(memory, buf);
 
-    app.formats.swap_line.clone().render(swap, buf);
+    app.formats.swap_line.deref().render(swap, buf);
 
     Paragraph::new(format!(
         "{}/{} ",
@@ -125,24 +125,24 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(swap, buf);
 
+    app.formats.cpu_line.deref() 
+        .render(cpu, buf);
+
+    Paragraph::new(format!("{}%", app.sys.global_cpu_usage()))
+    .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
+    .alignment(ratatui::layout::HorizontalAlignment::Right)
+    .render(cpu, buf);
+
+
+    
     Paragraph::new(app.formats.os_message_format.clone())
         .wrap(Wrap { trim: true })
         .block(normal_block("os"))
         .render(os, buf);
     let [network, process] =
         Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(cpu_network_process);
-    let [text_cpu, network] =
-        Layout::vertical([Constraint::Length(4), Constraint::Min(5)]).areas(network);
 
-    let cpu_s = format!(
-        "cpu usage: {:.2}%\nlogic core number: {}\n",
-        app.sys.global_cpu_usage(),
-        app.sys.cpus().len()
-    );
-    Paragraph::new(cpu_s)
-        .alignment(ratatui::layout::Alignment::Left)
-        .block(normal_block("cpu"))
-        .render(text_cpu, buf);
+    
 
     let mut items: Vec<String> = vec![];
     for (pid, item) in &app.network {

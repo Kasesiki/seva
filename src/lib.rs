@@ -1,11 +1,11 @@
-use std::{collections::HashMap, io, time::Duration};
+use std::{collections::HashMap, io, rc::Rc, time::Duration};
 
 use crossterm::event::{self, EventStream};
 use futures::{FutureExt, StreamExt};
 use ratatui::{
     Frame,
     style::Style,
-    symbols::{self, merge::MergeStrategy},
+    symbols::{self, line::DOUBLE_VERTICAL, merge::MergeStrategy},
     text::Line,
     widgets::{LineGauge, Widget},
 };
@@ -162,29 +162,37 @@ impl App {
     }
 
     pub fn merge_ui(&mut self) {
-        self.formats.mem_line = LineGauge::default()
-            .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
-            .filled_style(Style::new().blue().on_black().bold())
-            .filled_symbol(symbols::line::DOUBLE_VERTICAL)
-            .unfilled_symbol("")
+        let blue_style = Style::new().blue().on_black().bold();
+        self.formats.cpu_line = Rc::new(LineGauge::default()
+            .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
+            .filled_style(blue_style.clone())
+            .filled_symbol(DOUBLE_VERTICAL)
+            .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
             .label(Line::default())
-            .ratio(self.sys.used_memory() as f64 / self.sys.total_memory() as f64);
+            .ratio(self.sys.global_cpu_usage() as f64 / 100.0));
 
-        self.formats.swap_line = LineGauge::default()
-            .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
-            .filled_style(Style::new().blue().on_black().bold())
+        self.formats.mem_line = Rc::new(LineGauge::default()
+            .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
+            .filled_style(blue_style.clone())
             .filled_symbol(symbols::line::DOUBLE_VERTICAL)
             .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
             .label(Line::default())
-            .ratio(self.sys.used_swap() as f64 / self.sys.total_swap() as f64);
+            .ratio(self.sys.used_memory() as f64 / self.sys.total_memory() as f64));
 
-        let mut disk_text = String::new();
-        self.extend.disks.iter().for_each(|disk| {
+        self.formats.swap_line = Rc::new(LineGauge::default()
+            .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
+            .filled_style(blue_style)
+            .filled_symbol(symbols::line::DOUBLE_VERTICAL)
+            .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
+            .label(Line::default())
+            .ratio(self.sys.used_swap() as f64 / self.sys.total_swap() as f64));
+
+        self.formats.disk_text = self.extend.disks.iter().fold(String::new(), |acc, disk| {
             let total_space = disk.total_space();
             if total_space < 8 * 1024 * 1024 * 1024 {
-                return;
+                return acc;
             }
-            disk_text += &format!(
+            acc + &format!(
                 "Disk Name: {:?}\n   file system: {:?}\n   used/total: {}/ {}\n   write/read: {}/ {}\n\n",
                 disk.name(),
                 disk.file_system(),
@@ -192,9 +200,8 @@ impl App {
                 byte_to_string(total_space),
                 byte_to_string(disk.usage().written_bytes),
                 byte_to_string(disk.usage().read_bytes)
-            );
+            )
         });
-        self.formats.disk_text = disk_text;
     }
 
     pub async fn run(&mut self, mut terminal: ui::Tui) -> anyhow::Result<()> {
@@ -221,9 +228,11 @@ impl App {
             }
             // let elapsed = last_frame.elapsed();
             // last_frame = Instant::now();
-            terminal.draw(|frame| {
-                self.handle_ui(frame);
 
+            terminal.draw(|frame| {
+            
+                self.handle_ui(frame);
+                
                 //let screen_area = frame.area();
                 //effects.process_effects(elapsed.into(), frame.buffer_mut(), screen_area);
             })?;
@@ -250,8 +259,9 @@ impl Widget for &App {
 #[derive(Default)]
 pub struct Format {
     os_message_format: String,
-    mem_line: LineGauge<'static>,
-    swap_line: LineGauge<'static>,
+    cpu_line: Rc<LineGauge<'static>>,
+    mem_line: Rc<LineGauge<'static>>,
+    swap_line: Rc<LineGauge<'static>>,
     disk_text: String,
 }
 
