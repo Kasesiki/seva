@@ -12,7 +12,6 @@ use ratatui::{
     },
 };
 use std::{io, vec};
-use sysinfo::System;
 
 use crate::client::system::{byte_to_string, sec_to_time};
 
@@ -163,19 +162,7 @@ pub fn main_ui(
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(swap, buf);
 
-    let os_name = format!(
-        "os name: {}\ncpu name: {}\nos version: {}\nkernel version: {}\nhost name: {}\ncpu arch: {}\nrunning time: {}\n{}\n",
-        System::name().unwrap_or_default(),
-        app.sys.cpus()[0].brand(),
-        System::os_version().unwrap_or_default(),
-        System::kernel_version().unwrap_or_default(),
-        System::host_name().unwrap_or(String::from("linux")),
-        System::cpu_arch(),
-        sec_to_time(System::uptime()),
-        app.extend.package_text
-    );
-
-    Paragraph::new(os_name)
+    Paragraph::new(app.formats.os_message_format.clone())
         .wrap(Wrap { trim: true })
         .block(normal_block("os"))
         .render(os, buf);

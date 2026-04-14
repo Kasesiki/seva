@@ -3,9 +3,9 @@ use std::{collections::HashMap, io, time::Duration};
 use crossterm::event::{self, EventStream};
 use futures::{FutureExt, StreamExt};
 use ratatui::{Frame, widgets::Widget};
-use sysinfo::{Networks, ProcessRefreshKind, ProcessesToUpdate, System};
+use sysinfo::{Motherboard, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
 
-use crate::client::{client::{MutProcess, handle_key}, server::Serve, system::{Config, SystemLine}, ui::{self}};
+use crate::client::{client::{MutProcess, handle_key}, server::Serve, system::{Config, SystemLine, sec_to_time}, ui::{self}};
 
 
 pub mod client;
@@ -27,6 +27,7 @@ pub struct App {
     pub config: Config,
     pub service: Serve,
     pub network: Networks,
+    pub formats: Format,
 }
 
 impl App {
@@ -43,7 +44,33 @@ impl App {
             config: config.clone(),
             service: Serve::new(config.services),
             network: Networks::new_with_refreshed_list(),
-        })
+            formats: Format::new(),
+        }.once())
+    }
+
+    fn once(mut self) -> Self {
+        let gpu = gfxinfo::active_gpu();
+        let gpu_name = if let Ok(gpu) = gpu {
+            &format!("gpu 0: {}", Box::leak(gpu).model()) 
+        } else {
+            ""
+        };
+        
+        
+        self.formats.os_message_format = format!(
+            "os name: {}\ncpu name: {}\nMotherboard: {}\nos version: {}\nkernel version: {}\nhost name: {}\ncpu arch: {}\nrunning time: {}\n{}\n{}",
+            System::name().unwrap_or_default(),
+            Motherboard::new().map(|x| x.name().unwrap_or(String::new())).unwrap_or("".to_string()),
+            self.sys.cpus()[0].brand(),
+            System::os_version().unwrap_or_default(),
+            System::kernel_version().unwrap_or_default(),
+            System::host_name().unwrap_or(String::from("linux")),
+            System::cpu_arch(),
+            sec_to_time(System::uptime()),
+            self.extend.package_text,
+            gpu_name
+        );
+        self
     }
 
     pub fn handle_ui(&self, frame: &mut Frame) {
@@ -170,6 +197,19 @@ impl Widget for &App {
     }
 }
 
+#[derive(Default)]
+pub struct Format {
+    os_message_format: String,
+}
+
+impl Format {
+    pub fn new() -> Format {
+    
+        Format { ..Default::default() }
+    }
+
+}
+
 
 
 // pub async fn run(mut main: App, mut tui: Tui) -> anyhow::Result<()> {
@@ -189,3 +229,5 @@ impl Widget for &App {
 //     // let mut last_frame = Instant::now();
 
 // }
+
+
