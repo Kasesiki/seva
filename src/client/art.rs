@@ -202,34 +202,13 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
     ]
 });
 
-static NORMAL_ICON: LazyLock<OsIcon> = LazyLock::new(|| {
-    OsIcon {
-        name: "",
-        logo: [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-        ],
-        color: Vec::from(&[]),
-    }
-}); 
+static NORMAL_ICON: LazyLock<OsIcon> = LazyLock::new(|| OsIcon {
+    name: "",
+    logo: [
+        "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    ],
+    color: Vec::from(&[]),
+});
 
 static ICON_MAP: OnceCell<HashMap<String, OsIcon>> = OnceCell::new();
 

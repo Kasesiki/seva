@@ -1,7 +1,4 @@
-use seva::client::{
-    art,
-    ui,
-};
+use seva::client::{art, ui};
 
 #[tokio::main]
 async fn main() {

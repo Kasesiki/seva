@@ -9,11 +9,7 @@ use ratatui::{
 
 use super::ui::{ClientState, normal_block};
 
-pub fn main_ui(
-    app: &crate::App,
-    area: ratatui::prelude::Rect,
-    buf: &mut ratatui::prelude::Buffer,
-) {
+pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
     let [main, help] = Layout::vertical([Constraint::Fill(6), Constraint::Fill(1)]).areas(area);
     let [lis, details] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(3)]).areas(main);
     List::new(app.service.services.clone())

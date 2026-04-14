@@ -1,4 +1,7 @@
-use std::{ffi::{OsStr, OsString}, process::{Command, Stdio}};
+use std::{
+    ffi::{OsStr, OsString},
+    process::{Command, Stdio},
+};
 
 use queue::Queue;
 

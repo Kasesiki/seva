@@ -2,18 +2,26 @@ use std::{collections::HashMap, io, time::Duration};
 
 use crossterm::event::{self, EventStream};
 use futures::{FutureExt, StreamExt};
-use ratatui::{Frame, widgets::Widget};
+use ratatui::{
+    Frame,
+    style::Style,
+    symbols::{self, merge::MergeStrategy},
+    text::Line,
+    widgets::{LineGauge, Widget},
+};
 use sysinfo::{Motherboard, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
 
-use crate::client::{client::{MutProcess, handle_key}, server::Serve, system::{Config, SystemLine, sec_to_time}, ui::{self}};
-
+use crate::client::{
+    client::{MutProcess, handle_key},
+    server::Serve,
+    system::{Config, SystemLine, byte_to_string, sec_to_time},
+    ui::{self, normal_block},
+};
 
 pub mod client;
 // pub mod control;
 // pub mod network;
 // pub mod server;
-
-
 
 unsafe impl Send for App {}
 pub struct App {
@@ -45,23 +53,25 @@ impl App {
             service: Serve::new(config.services),
             network: Networks::new_with_refreshed_list(),
             formats: Format::new(),
-        }.once())
+        }
+        .once())
     }
 
     fn once(mut self) -> Self {
         let gpu = gfxinfo::active_gpu();
         let gpu_name = if let Ok(gpu) = gpu {
-            &format!("gpu 0: {}", Box::leak(gpu).model()) 
+            &format!("gpu 0: {}", Box::leak(gpu).model())
         } else {
             ""
         };
-        
-        
+
         self.formats.os_message_format = format!(
             "os name: {}\ncpu name: {}\nMotherboard: {}\nos version: {}\nkernel version: {}\nhost name: {}\ncpu arch: {}\nrunning time: {}\n{}\n{}",
             System::name().unwrap_or_default(),
-            Motherboard::new().map(|x| x.name().unwrap_or(String::new())).unwrap_or("".to_string()),
             self.sys.cpus()[0].brand(),
+            Motherboard::new()
+                .map(|x| x.name().unwrap_or(String::new()))
+                .unwrap_or("".to_string()),
             System::os_version().unwrap_or_default(),
             System::kernel_version().unwrap_or_default(),
             System::host_name().unwrap_or(String::from("linux")),
@@ -70,6 +80,9 @@ impl App {
             self.extend.package_text,
             gpu_name
         );
+
+        self.flash().unwrap();
+
         self
     }
 
@@ -107,6 +120,7 @@ impl App {
         self.sys_line
             .memory_data
             .force_queue(format!("{:.2}", (us_memory / to_memory) * 100.0).parse::<f64>()?);
+        self.merge_ui();
         Ok(())
     }
 
@@ -145,6 +159,42 @@ impl App {
                 .processes
                 .sort_by(|k, v| v.cpu_usage.total_cmp(&k.cpu_usage));
         }
+    }
+
+    pub fn merge_ui(&mut self) {
+        self.formats.mem_line = LineGauge::default()
+            .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
+            .filled_style(Style::new().blue().on_black().bold())
+            .filled_symbol(symbols::line::DOUBLE_VERTICAL)
+            .unfilled_symbol("")
+            .label(Line::default())
+            .ratio(self.sys.used_memory() as f64 / self.sys.total_memory() as f64);
+
+        self.formats.swap_line = LineGauge::default()
+            .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
+            .filled_style(Style::new().blue().on_black().bold())
+            .filled_symbol(symbols::line::DOUBLE_VERTICAL)
+            .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
+            .label(Line::default())
+            .ratio(self.sys.used_swap() as f64 / self.sys.total_swap() as f64);
+
+        let mut disk_text = String::new();
+        self.extend.disks.iter().for_each(|disk| {
+            let total_space = disk.total_space();
+            if total_space < 8 * 1024 * 1024 * 1024 {
+                return;
+            }
+            disk_text += &format!(
+                "Disk Name: {:?}\n   file system: {:?}\n   used/total: {}/ {}\n   write/read: {}/ {}\n\n",
+                disk.name(),
+                disk.file_system(),
+                byte_to_string(total_space - disk.available_space()),
+                byte_to_string(total_space),
+                byte_to_string(disk.usage().written_bytes),
+                byte_to_string(disk.usage().read_bytes)
+            );
+        });
+        self.formats.disk_text = disk_text;
     }
 
     pub async fn run(&mut self, mut terminal: ui::Tui) -> anyhow::Result<()> {
@@ -200,20 +250,21 @@ impl Widget for &App {
 #[derive(Default)]
 pub struct Format {
     os_message_format: String,
+    mem_line: LineGauge<'static>,
+    swap_line: LineGauge<'static>,
+    disk_text: String,
 }
 
 impl Format {
     pub fn new() -> Format {
-    
-        Format { ..Default::default() }
+        Format {
+            ..Default::default()
+        }
     }
-
 }
 
-
-
 // pub async fn run(mut main: App, mut tui: Tui) -> anyhow::Result<()> {
-    
+
 //     //let mut fan = tokio::time::interval(Duration::from_millis(16));
 //     // let mut effects: EffectManager<()> = EffectManager::default();
 //     // let timer = (1000, Interpolation::Linear);
@@ -229,5 +280,3 @@ impl Format {
 //     // let mut last_frame = Instant::now();
 
 // }
-
-

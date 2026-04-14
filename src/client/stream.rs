@@ -1,4 +1,5 @@
-use crate::client::{server,
+use crate::client::{
+    server,
     ui::{ClientState, main_ui, trend_ui},
 };
 

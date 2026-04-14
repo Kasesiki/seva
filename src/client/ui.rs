@@ -4,20 +4,17 @@ use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Flex, Layout, Rect, Spacing},
     style::{Color, Style, Stylize},
-    symbols::{self, Marker, border, merge::MergeStrategy},
-    text::{Line, Text},
+    symbols::{Marker, border, merge::MergeStrategy},
+    text::Text,
     widgets::{
-        Axis, Block, Chart, Clear, Dataset, GraphType, LineGauge, List, Padding, Paragraph, Widget,
-        Wrap,
+        Axis, Block, Chart, Clear, Dataset, GraphType, List, Padding, Paragraph, Widget, Wrap,
     },
 };
 use std::{io, vec};
 
 use crate::client::system::{byte_to_string, sec_to_time};
 
-use super::{
-    art,
-};
+use super::art;
 
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
 
@@ -52,24 +49,7 @@ pub fn trend_ui(
     );
     pc.build(trend, buf);
 
-    let mut disk_text = String::new();
-    app.extend.disks.iter().for_each(|disk| {
-        let total_space = disk.total_space();
-        if total_space < 8 * 1024 * 1024 * 1024 {
-            return;
-        }
-        disk_text += &format!(
-            "Disk Name: {:?}\n   file system: {:?}\n   used/total: {}/ {}\n   write/read: {}/ {}\n\n",
-            disk.name(),
-            disk.file_system(),
-            byte_to_string(total_space - disk.available_space()),
-            byte_to_string(total_space),
-            byte_to_string(disk.usage().written_bytes),
-            byte_to_string(disk.usage().read_bytes)
-        );
-    });
-
-    let item1 = Text::from(disk_text)
+    let item1 = Text::from(app.formats.disk_text.as_str())
         .centered()
         .bg(Color::White)
         .fg(Color::White);
@@ -99,11 +79,7 @@ pub fn trend_ui(
         .render(process, buf);
 }
 
-pub fn main_ui(
-    app: &crate::App,
-    area: ratatui::prelude::Rect,
-    buf: &mut ratatui::prelude::Buffer,
-) {
+pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
     let [tabs, main] = Layout::vertical([Constraint::Length(3), Constraint::Fill(0)]).areas(area);
     let [art_memory_os, cpu_network_process] =
         Layout::vertical([Constraint::Length(24), Constraint::Fill(1)]).areas(main);
@@ -127,14 +103,8 @@ pub fn main_ui(
         .spacing(Spacing::Overlap(1))
         .areas(memory);
 
-    LineGauge::default()
-        .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
-        .filled_style(Style::new().blue().on_black().bold())
-        .filled_symbol(symbols::line::DOUBLE_VERTICAL)
-        .unfilled_symbol("")
-        .label(Line::default())
-        .ratio(app.sys.used_memory() as f64 / app.sys.total_memory() as f64)
-        .render(memory, buf);
+    app.formats.mem_line.clone().render(memory, buf);
+
     Paragraph::new(format!(
         "{}/{} ",
         byte_to_string(app.sys.used_memory()),
@@ -144,14 +114,7 @@ pub fn main_ui(
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(memory, buf);
 
-    LineGauge::default()
-        .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
-        .filled_style(Style::new().blue().on_black().bold())
-        .filled_symbol(symbols::line::DOUBLE_VERTICAL)
-        .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
-        .label(Line::default())
-        .ratio(app.sys.used_swap() as f64 / app.sys.total_swap() as f64)
-        .render(swap, buf);
+    app.formats.swap_line.clone().render(swap, buf);
 
     Paragraph::new(format!(
         "{}/{} ",

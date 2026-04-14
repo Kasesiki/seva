@@ -1,15 +1,14 @@
-
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
 use sysinfo::{Disks, Pid, Process};
 
-use crate::App;
-use crate::client::system::{from_osstring};
-use crate::client::system::command_runs;
 use super::{
     server::{self},
     // sftp::{self, FtpStruct},
-    ui::{ClientState},
+    ui::ClientState,
 };
+use crate::App;
+use crate::client::system::command_runs;
+use crate::client::system::from_osstring;
 
 pub static MENU_TITLES: [&str; 3] = ["Home", "Control", "Terminal"];
 
@@ -39,7 +38,6 @@ impl Extend {
         Ok(result)
     }
 }
-
 
 pub fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
     if key.kind == KeyEventKind::Press {
