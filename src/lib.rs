@@ -58,15 +58,10 @@ impl App {
     }
 
     fn once(mut self) -> Self {
-        let gpu = gfxinfo::active_gpu();
-        let gpu_name = if let Ok(gpu) = gpu {
-            &format!("gpu 0: {}", Box::leak(gpu).model())
-        } else {
-            ""
-        };
+
 
         self.formats.os_message_format = format!(
-            "os name: {}\ncpu name: {}\nMotherboard: {}\nos version: {}\nkernel version: {}\nhost name: {}\ncpu arch: {}\nrunning time: {}\n{}\n{}",
+            "os name: {}\ncpu name: {}\nMotherboard: {}\nos version: {}\nkernel version: {}\nhost name: {}\ncpu arch: {}\nrunning time: {}\n{}\n",
             System::name().unwrap_or_default(),
             self.sys.cpus()[0].brand(),
             Motherboard::new()
@@ -78,7 +73,6 @@ impl App {
             System::cpu_arch(),
             sec_to_time(System::uptime()),
             self.extend.package_text,
-            gpu_name
         );
 
         self.flash().unwrap();
