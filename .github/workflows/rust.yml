@@ -2,21 +2,35 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+      - "v*"
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
+    
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
     - name: Build
       run: cargo build --verbose --release
-    - name: Run tests
-      run: cargo test --verbose
+      
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        token: ${{ secrets.GITHUBTOKEN }}
+        name: "Version ${{ steps.get_version.outputs.VERSION }} 🚀"
+        draft: false
+        prerelease: true
+        generate_release_notes: true
+        # release 中的信息，一般为 changelog
+        body_path: "Version ${{ steps.get_version.outputs.VERSION }} 🚀"
+        # 你上传的 release 文件路径
+        files: |
+          target/release/seva
