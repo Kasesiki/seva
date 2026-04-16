@@ -27,10 +27,10 @@ jobs:
         token: ${{ secrets.GITHUBTOKEN }}
         name: "Version ${{ steps.get_version.outputs.VERSION }} 🚀"
         draft: false
-        prerelease: true
+        prerelease: false
         generate_release_notes: true
         # release 中的信息，一般为 changelog
-        body_path: "Version ${{ steps.get_version.outputs.VERSION }} 🚀"
+        body_path: "changelog/v${{ steps.get_version.outputs.VERSION }}.md"
         # 你上传的 release 文件路径
         files: |
           target/release/seva
