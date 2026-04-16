@@ -12,7 +12,7 @@ use ratatui::{
 };
 use std::{io, ops::Deref, vec};
 
-use crate::client::system::{byte_to_string, sec_to_time};
+use crate::{App, client::system::{byte_to_string, sec_to_time}};
 
 use super::art;
 
@@ -49,6 +49,7 @@ pub fn trend_ui(
     );
     pc.build(trend, buf);
 
+    
     let item1 = Text::from(app.formats.disk_text.as_str())
         .centered()
         .bg(Color::White)
@@ -170,8 +171,30 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .block(normal_block("network"))
         .render(network, buf);
 
-    Paragraph::new("    PID      NAME            %CPU       MEM").render(process_top, buf);
+    let (a, b) = if buf.area.as_size().height > 25 {
+        short_process(app)
+    } else {
+        long_process(app)
+    };
+    a.render(process_top, buf);
+    b.render(process, buf);
+}
 
+pub fn long_process(app: &App) -> (Paragraph<'static>, List<'static>) {
+    let items = app.extend.processes.iter().map(|process| {
+        format!(
+            "{:<9}{:<12}{:<14}{:<17}{}",
+            process.pid.as_u32(),
+            format!("{:.2}%", process.cpu_usage),
+            byte_to_string(process.memory),
+            sec_to_time(process.run_time),
+            process.cmd
+        )
+    });
+    (Paragraph::new("   PID      %CPU        MEM           TIME             CMD"), List::new(items).block(normal_block("process")))
+}
+
+pub fn short_process(app: &App) -> (Paragraph<'static>, List<'static>) {
     let items = app.extend.processes.iter().map(|x| {
         format!(
             "{:<9}{:<17}{:<10}{}",
@@ -181,10 +204,7 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             byte_to_string(x.memory),
         )
     });
-
-    List::new(items)
-        .block(normal_block("process"))
-        .render(process, buf);
+    (Paragraph::new("    PID      NAME            %CPU       MEM"), List::new(items).block(normal_block("process")))
 }
 
 #[derive(PartialEq, Clone)]
