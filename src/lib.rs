@@ -17,7 +17,7 @@ use crate::client::{
     system::{Config, SystemLine, byte_to_string, sec_to_time},
     ui::{self, normal_block},
 };
-use crate::sys::get_intel_gpu;
+use crate::sys::get_gpu;
 
 pub mod client;
 pub mod sys;
@@ -60,19 +60,19 @@ impl App {
     }
 
     fn once(mut self) -> Self {
-        let gpu = get_intel_gpu().unwrap_or_default();
+        let gpu = get_gpu().unwrap_or_default();
 
         self.formats.os_message_format = format!(
-            "os name: {}\ncpu name: {}\nMotherboard: {}\nos version: {}\nkernel version: {}\nhost name: {}\ncpu arch: {}\nrunning time: {}\n{}\n",
+            "os name: {}\nos version: {}\ncpu name: {}\ncpu arch: {}\nMotherboard: {}\nkernel version: {}\nhost name: {}\nrunning time: {}\n{}\n",
             System::name().unwrap_or_default(),
+            System::os_version().unwrap_or(String::from("Unknown os version")),
             self.sys.cpus()[0].brand(),
+            System::cpu_arch(),
             Motherboard::new()
                 .map(|x| x.name().unwrap_or(String::new()))
                 .unwrap_or("".to_string()),
-            System::os_version().unwrap_or_default(),
             System::kernel_version().unwrap_or_default(),
             System::host_name().unwrap_or(String::from("linux")),
-            System::cpu_arch(),
             sec_to_time(System::uptime()),
             self.extend.package_text,
         );

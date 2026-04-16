@@ -5,6 +5,7 @@ use std::{
 
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
 // const INTEL_VENDOR_ID: u16 = 0x8086;
+// const MEMORY_CONTROLLER_CLASS: u32 = 0x05;
 const DISPLAY_CONTROLLER_CLASS: u32 = 0x03;
 const PCI_IDS_PATHS: [&str; 2] = ["/usr/share/misc/pci.ids", "/usr/share/hwdata/pci.ids"];
 
@@ -38,10 +39,6 @@ pub fn get_pci_devices() -> io::Result<Vec<PciGpuDevice>> {
             continue;
         };
 
-        if class_code >> 16 != DISPLAY_CONTROLLER_CLASS {
-            continue;
-        }
-
         let (vendor_name, device_name) = if let Some(ids) = pci_ids.as_deref() {
             find_pci_names(ids, vendor_id, device_id)
         } else {
@@ -66,10 +63,10 @@ pub fn get_pci_devices() -> io::Result<Vec<PciGpuDevice>> {
     Ok(gpus)
 }
 
-pub fn get_intel_gpu() -> io::Result<Vec<PciGpuDevice>> {
-    Ok(get_pci_devices()?
-        .into_iter()
-        .collect())
+pub fn get_gpu() -> io::Result<Vec<PciGpuDevice>> {
+    let pci_devices = get_pci_devices()?;
+    Ok(pci_devices.into_iter().filter(|x| x.class_code >> 16 == DISPLAY_CONTROLLER_CLASS)
+    .collect())
 }
 
 fn read_hex_u16(path: &Path) -> Option<u16> {
