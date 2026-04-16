@@ -65,8 +65,10 @@ pub fn get_pci_devices() -> io::Result<Vec<PciGpuDevice>> {
 
 pub fn get_gpu() -> io::Result<Vec<PciGpuDevice>> {
     let pci_devices = get_pci_devices()?;
-    Ok(pci_devices.into_iter().filter(|x| x.class_code >> 16 == DISPLAY_CONTROLLER_CLASS)
-    .collect())
+    Ok(pci_devices
+        .into_iter()
+        .filter(|x| x.class_code >> 16 == DISPLAY_CONTROLLER_CLASS)
+        .collect())
 }
 
 fn read_hex_u16(path: &Path) -> Option<u16> {

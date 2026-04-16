@@ -81,23 +81,35 @@ pub fn trend_ui(
 
 pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
     let [tabs, main] = Layout::vertical([Constraint::Length(3), Constraint::Fill(0)]).areas(area);
-    let [art_memory_os, cpu_network_process] =
-        Layout::vertical([Constraint::Length(24), Constraint::Fill(1)]).areas(main);
-    let [art, memory_os] =
-        Layout::horizontal([Constraint::Length(53), Constraint::Fill(1)]).areas(art_memory_os);
 
-    Paragraph::new("Welcome to SeVA!   Press 'Q' to quit SEVA")
-        .alignment(ratatui::layout::Alignment::Center)
-        .block(normal_block("SEVA Control"))
-        .render(tabs, buf);
+    app.formats.tab.deref().render(tabs, buf);
+    let (memline, os, network, process) = if buf.area.as_size().height > 25 {
+        let [art_memory_os, network_process] =
+            Layout::vertical([Constraint::Length(24), Constraint::Fill(1)]).areas(main);
 
-    art::render_logo(art, buf);
+        let [art, memory_os] =
+            Layout::horizontal([Constraint::Length(53), Constraint::Fill(1)]).areas(art_memory_os);
 
-    let [art] = Layout::vertical([Constraint::Fill(1)])
-        .flex(Flex::Center)
-        .areas(art);
-    let [memory, os] = Layout::vertical([Constraint::Max(7), Constraint::Fill(0)]).areas(memory_os);
-    normal_block("art").render(art, buf);
+        art::render_logo(art, buf);
+
+        let [mem_line, os] =
+            Layout::vertical([Constraint::Max(7), Constraint::Fill(0)]).areas(memory_os);
+
+        let [network, process] =
+            Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(network_process);
+
+        (mem_line, os, network, process)
+    } else {
+        let [top, process] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(main);
+        let [cpu_mem_os, os] =
+            Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(top);
+
+        let [mem_line, network] =
+            Layout::vertical([Constraint::Max(7), Constraint::Fill(0)]).areas(cpu_mem_os);
+
+        (mem_line, os, network, process)
+    };
 
     let [cpu, memory, swap] = Layout::vertical([
         Constraint::Length(3),
@@ -105,7 +117,10 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         Constraint::Length(4),
     ])
     .spacing(Spacing::Overlap(1))
-    .areas(memory);
+    .areas(memline);
+
+    let [process_top, process] =
+        Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).areas(process);
 
     app.formats.mem_line.deref().render(memory, buf);
 
@@ -140,8 +155,6 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .wrap(Wrap { trim: true })
         .block(normal_block("os"))
         .render(os, buf);
-    let [network, process] =
-        Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(cpu_network_process);
 
     let mut items: Vec<String> = vec![];
     for (pid, item) in &app.network {
@@ -152,13 +165,10 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             byte_to_string(item.total_transmitted())
         ));
     }
-    items.sort();
+
     List::new(items)
         .block(normal_block("network"))
         .render(network, buf);
-
-    let [process_top, process] =
-        Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).areas(process);
 
     Paragraph::new("    PID      NAME            %CPU       MEM").render(process_top, buf);
 

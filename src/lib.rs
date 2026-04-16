@@ -7,7 +7,7 @@ use ratatui::{
     style::Style,
     symbols::{self, line::DOUBLE_VERTICAL, merge::MergeStrategy},
     text::Line,
-    widgets::{LineGauge, Widget},
+    widgets::{LineGauge, Paragraph, Widget},
 };
 use sysinfo::{Motherboard, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
 
@@ -61,6 +61,11 @@ impl App {
 
     fn once(mut self) -> Self {
         let gpu = get_gpu().unwrap_or_default();
+        self.formats.tab = Rc::new(
+            Paragraph::new("Welcome to SeVA!   Press 'Q' to quit SEVA")
+                .alignment(ratatui::layout::Alignment::Center)
+                .block(normal_block("SEVA Control")),
+        );
 
         self.formats.os_message_format = format!(
             "os name: {}\nos version: {}\ncpu name: {}\ncpu arch: {}\nMotherboard: {}\nkernel version: {}\nhost name: {}\nrunning time: {}\n{}\n",
@@ -266,6 +271,7 @@ impl Widget for &App {
 #[derive(Default)]
 pub struct Format {
     os_message_format: String,
+    tab: Rc<Paragraph<'static>>,
     cpu_line: Rc<LineGauge<'static>>,
     mem_line: Rc<LineGauge<'static>>,
     swap_line: Rc<LineGauge<'static>>,
