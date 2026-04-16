@@ -1,6 +1,6 @@
 seva是一个使用ratatui实现的tui终端信息显示器，虽然是初学rust时进行编写，不过最近花了几个晚上进行了些许性能修复和补丁，勉强开源
 
-<img width="1610" height="1135" alt="image" src="https://github.com/user-attachments/assets/8a50a7bf-eb56-4780-96e1-74a295726a44" />
+<img width="1447" height="1020" alt="屏幕截图_20260416_212019" src="https://github.com/user-attachments/assets/0dced520-80ee-4a84-a91e-f2bfa36caa0c" />
 
 Quick Start
 
