@@ -173,7 +173,7 @@ impl App {
         self.formats.cpu_line = Rc::new(
             LineGauge::default()
                 .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
-                .filled_style(blue_style.clone())
+                .filled_style(blue_style)
                 .filled_symbol(DOUBLE_VERTICAL)
                 .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
                 .label(Line::default())
@@ -183,7 +183,7 @@ impl App {
         self.formats.mem_line = Rc::new(
             LineGauge::default()
                 .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
-                .filled_style(blue_style.clone())
+                .filled_style(blue_style)
                 .filled_symbol(symbols::line::DOUBLE_VERTICAL)
                 .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
                 .label(Line::default())

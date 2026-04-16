@@ -1,3 +1,5 @@
+use std::sync::atomic::AtomicBool;
+
 use crate::client::{
     server,
     ui::{ClientState, main_ui, trend_ui},
@@ -21,13 +23,19 @@ pub fn main_ui_draw(
     }
 }
 
+static SERVE_READY: AtomicBool = AtomicBool::new(false);
+
 pub fn reset_state(state: &mut ClientState) {
     match *state {
         ClientState::Main => {
             *state = ClientState::Trend;
         }
         ClientState::Trend => {
-            *state = ClientState::Serve;
+            if SERVE_READY.load(std::sync::atomic::Ordering::Relaxed) {
+                *state = ClientState::Serve;
+            } else {
+                *state = ClientState::Main;
+            }
         }
         // ClientState::Sftp => {
         //     *state = ClientState::Serve;

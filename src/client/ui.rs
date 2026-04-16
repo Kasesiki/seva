@@ -12,7 +12,10 @@ use ratatui::{
 };
 use std::{io, ops::Deref, vec};
 
-use crate::{App, client::system::{byte_to_string, sec_to_time}};
+use crate::{
+    App,
+    client::system::{byte_to_string, sec_to_time},
+};
 
 use super::art;
 
@@ -49,7 +52,6 @@ pub fn trend_ui(
     );
     pc.build(trend, buf);
 
-    
     let item1 = Text::from(app.formats.disk_text.as_str())
         .centered()
         .bg(Color::White)
@@ -124,7 +126,9 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).areas(process);
 
     app.formats.mem_line.deref().render(memory, buf);
-
+    app.formats.swap_line.deref().render(swap, buf);
+    app.formats.cpu_line.deref().render(cpu, buf);
+    
     Paragraph::new(format!(
         "{}/{} ",
         byte_to_string(app.sys.used_memory()),
@@ -134,8 +138,6 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(memory, buf);
 
-    app.formats.swap_line.deref().render(swap, buf);
-
     Paragraph::new(format!(
         "{}/{} ",
         byte_to_string(app.sys.used_swap()),
@@ -144,8 +146,6 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(swap, buf);
-
-    app.formats.cpu_line.deref().render(cpu, buf);
 
     Paragraph::new(format!("{}%", app.sys.global_cpu_usage()))
         .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
@@ -191,7 +191,10 @@ pub fn long_process(app: &App) -> (Paragraph<'static>, List<'static>) {
             process.cmd
         )
     });
-    (Paragraph::new("   PID      %CPU        MEM           TIME             CMD"), List::new(items).block(normal_block("process")))
+    (
+        Paragraph::new("   PID      %CPU        MEM           TIME             CMD"),
+        List::new(items).block(normal_block("process")),
+    )
 }
 
 pub fn short_process(app: &App) -> (Paragraph<'static>, List<'static>) {
@@ -204,7 +207,10 @@ pub fn short_process(app: &App) -> (Paragraph<'static>, List<'static>) {
             byte_to_string(x.memory),
         )
     });
-    (Paragraph::new("    PID      NAME            %CPU       MEM"), List::new(items).block(normal_block("process")))
+    (
+        Paragraph::new("    PID      NAME            %CPU       MEM"),
+        List::new(items).block(normal_block("process")),
+    )
 }
 
 #[derive(PartialEq, Clone)]
