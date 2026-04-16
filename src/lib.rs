@@ -17,8 +17,10 @@ use crate::client::{
     system::{Config, SystemLine, byte_to_string, sec_to_time},
     ui::{self, normal_block},
 };
+use crate::sys::get_intel_gpu;
 
 pub mod client;
+pub mod sys;
 // pub mod control;
 // pub mod network;
 // pub mod server;
@@ -58,7 +60,7 @@ impl App {
     }
 
     fn once(mut self) -> Self {
-
+        let gpu = get_intel_gpu().unwrap_or_default();
 
         self.formats.os_message_format = format!(
             "os name: {}\ncpu name: {}\nMotherboard: {}\nos version: {}\nkernel version: {}\nhost name: {}\ncpu arch: {}\nrunning time: {}\n{}\n",
@@ -74,6 +76,12 @@ impl App {
             sec_to_time(System::uptime()),
             self.extend.package_text,
         );
+
+        for (i, dev) in gpu.iter().enumerate() {
+            if let Some(name) = &dev.device_name {
+                self.formats.os_message_format += &format!("gpu {}: {}\n", i, name);
+            }
+        }
 
         self.flash().unwrap();
 
@@ -157,29 +165,35 @@ impl App {
 
     pub fn merge_ui(&mut self) {
         let blue_style = Style::new().blue().on_black().bold();
-        self.formats.cpu_line = Rc::new(LineGauge::default()
-            .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
-            .filled_style(blue_style.clone())
-            .filled_symbol(DOUBLE_VERTICAL)
-            .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
-            .label(Line::default())
-            .ratio(self.sys.global_cpu_usage() as f64 / 100.0));
+        self.formats.cpu_line = Rc::new(
+            LineGauge::default()
+                .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
+                .filled_style(blue_style.clone())
+                .filled_symbol(DOUBLE_VERTICAL)
+                .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
+                .label(Line::default())
+                .ratio(self.sys.global_cpu_usage() as f64 / 100.0),
+        );
 
-        self.formats.mem_line = Rc::new(LineGauge::default()
-            .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
-            .filled_style(blue_style.clone())
-            .filled_symbol(symbols::line::DOUBLE_VERTICAL)
-            .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
-            .label(Line::default())
-            .ratio(self.sys.used_memory() as f64 / self.sys.total_memory() as f64));
+        self.formats.mem_line = Rc::new(
+            LineGauge::default()
+                .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
+                .filled_style(blue_style.clone())
+                .filled_symbol(symbols::line::DOUBLE_VERTICAL)
+                .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
+                .label(Line::default())
+                .ratio(self.sys.used_memory() as f64 / self.sys.total_memory() as f64),
+        );
 
-        self.formats.swap_line = Rc::new(LineGauge::default()
-            .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
-            .filled_style(blue_style)
-            .filled_symbol(symbols::line::DOUBLE_VERTICAL)
-            .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
-            .label(Line::default())
-            .ratio(self.sys.used_swap() as f64 / self.sys.total_swap() as f64));
+        self.formats.swap_line = Rc::new(
+            LineGauge::default()
+                .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
+                .filled_style(blue_style)
+                .filled_symbol(symbols::line::DOUBLE_VERTICAL)
+                .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
+                .label(Line::default())
+                .ratio(self.sys.used_swap() as f64 / self.sys.total_swap() as f64),
+        );
 
         self.formats.disk_text = self.extend.disks.iter().fold(String::new(), |acc, disk| {
             let total_space = disk.total_space();
@@ -224,9 +238,8 @@ impl App {
             // last_frame = Instant::now();
 
             terminal.draw(|frame| {
-            
                 self.handle_ui(frame);
-                
+
                 //let screen_area = frame.area();
                 //effects.process_effects(elapsed.into(), frame.buffer_mut(), screen_area);
             })?;
