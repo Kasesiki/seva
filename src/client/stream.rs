@@ -19,7 +19,6 @@ pub fn ui_state(
     match app.state {
         ClientState::Trend => trend_ui(app, area, buf),
         ClientState::Main => main_ui(app, area, buf),
-        // ClientState::Sftp => sftp::main_ui(app, area, buf),
         ClientState::Serve => server::main_ui(app, area, buf),
     }
 }
@@ -38,9 +37,6 @@ pub fn reset_state(state: &mut ClientState) {
                 *state = ClientState::Main;
             }
         }
-        // ClientState::Sftp => {
-        //     *state = ClientState::Serve;
-        // }
         ClientState::Serve => {
             *state = ClientState::Main;
         }

@@ -25,9 +25,6 @@ use crate::{
 pub mod client;
 pub mod sys;
 pub mod ui;
-// pub mod control;
-// pub mod network;
-// pub mod server;
 
 unsafe impl Send for App {}
 pub struct App {
@@ -36,7 +33,6 @@ pub struct App {
     pub sys: System,
     pub extend: Extend,
     pub sys_line: SystemLine,
-    // pub sftp: FtpStruct,
     pub err: Option<anyhow::Error>,
     pub config: Config,
     pub service: Serve,
@@ -52,7 +48,6 @@ impl App {
             exit: false,
             sys: System::new_all(),
             sys_line: SystemLine::new(),
-            // sftp: FtpStruct::new(),
             err: None,
             extend: Extend::new()?,
             config: config.clone(),
