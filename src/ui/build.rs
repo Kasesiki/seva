@@ -14,7 +14,8 @@ use std::{io, ops::Deref, vec};
 
 use crate::{
     App,
-    client::system::{byte_to_string, sec_to_time}, ui::layout::{main_layout, trend_layout},
+    client::system::{byte_to_string, sec_to_time},
+    ui::layout::{main_layout, trend_layout},
 };
 
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
@@ -77,11 +78,10 @@ pub fn trend_ui(
 }
 
 pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-
     let (tabs, line, os, network, process) = main_layout(area, buf);
 
     app.formats.tab.deref().render(tabs, buf);
-    
+
     let [cpu, memory, swap] = Layout::vertical([
         Constraint::Length(3),
         Constraint::Length(3),
@@ -180,8 +180,6 @@ pub fn short_process(app: &App) -> (Paragraph<'static>, List<'static>) {
         List::new(items).block(normal_block("process")),
     )
 }
-
-
 
 pub fn normal_block(name: &str) -> Block<'_> {
     Block::bordered()

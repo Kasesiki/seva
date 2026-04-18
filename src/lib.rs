@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io, rc::Rc, time::Duration};
 
-use crossterm::event::{self, EventStream};
+use crossterm::event::{self, EventStream, KeyCode, KeyEvent, KeyEventKind};
 use futures::{FutureExt, StreamExt};
 use ratatui::{
     Frame,
@@ -9,28 +9,32 @@ use ratatui::{
     text::Line,
     widgets::{LineGauge, Paragraph, Widget},
 };
-use sysinfo::{Motherboard, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
+use sysinfo::{
+    Disks, Motherboard, Networks, Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System,
+};
 
-use crate::{client::{
-    client::{ClientState, MutProcess, handle_key},
-    server::Serve,
-    system::{Config, SystemLine, byte_to_string, sec_to_time},
-}, ui::build::{Tui, normal_block, set_alert}};
 use crate::sys::get_gpu;
+use crate::{
+    client::{
+        server::{self, Serve},
+        system::{Config, SystemLine, byte_to_string, command_runs, from_osstring, sec_to_time},
+    },
+    ui::build::{Tui, normal_block, set_alert},
+};
 
 pub mod client;
-pub mod ui;
 pub mod sys;
+pub mod ui;
 // pub mod control;
 // pub mod network;
 // pub mod server;
 
 unsafe impl Send for App {}
 pub struct App {
-    pub state: crate::client::client::ClientState,
+    pub state: ClientState,
     pub exit: bool,
     pub sys: System,
-    pub extend: crate::client::client::Extend,
+    pub extend: Extend,
     pub sys_line: SystemLine,
     // pub sftp: FtpStruct,
     pub err: Option<anyhow::Error>,
@@ -50,7 +54,7 @@ impl App {
             sys_line: SystemLine::new(),
             // sftp: FtpStruct::new(),
             err: None,
-            extend: crate::client::client::Extend::new()?,
+            extend: Extend::new()?,
             config: config.clone(),
             service: Serve::new(config.services),
             network: Networks::new_with_refreshed_list(),
@@ -232,21 +236,13 @@ impl App {
                 _ = tick.tick() => {
                     self.flash()?;
                 }
-                // _ = fan.tick() => {
-
-                // }
             };
             if self.exit {
                 break;
             }
-            // let elapsed = last_frame.elapsed();
-            // last_frame = Instant::now();
 
             terminal.draw(|frame| {
                 self.handle_ui(frame);
-
-                //let screen_area = frame.area();
-                //effects.process_effects(elapsed.into(), frame.buffer_mut(), screen_area);
             })?;
         }
         ratatui::restore();
@@ -286,20 +282,100 @@ impl Format {
     }
 }
 
-// pub async fn run(mut main: App, mut tui: Tui) -> anyhow::Result<()> {
+#[derive(PartialEq, Clone)]
+pub enum ClientState {
+    Trend,
+    Main,
+    // Sftp,
+    Serve,
+}
 
-//     //let mut fan = tokio::time::interval(Duration::from_millis(16));
-//     // let mut effects: EffectManager<()> = EffectManager::default();
-//     // let timer = (1000, Interpolation::Linear);
-//     // let fg_shift = [120.0, 25.0, 25.0];
-//     // let bg_shift = [-40.0, -50.0, -50.0];
+#[derive(Default)]
+pub struct Extend {
+    pub package_text: String,
+    pub trend_sort: String,
+    pub space: bool,
+    pub disks: Disks,
+    pub processes: Vec<MutProcess>,
+}
 
-//     // let fade_effect = fx::hsl_shift(Some(fg_shift), Some(bg_shift), timer)
-//     //     .with_pattern(DiagonalPattern::bottom_left_to_top_right());
-//     // let fx = fx::freeze_at(0.5, false, fade_effect);
+impl Extend {
+    pub fn new() -> anyhow::Result<Extend> {
+        let mut result = Extend {
+            package_text: String::from("packages: "),
+            ..Default::default()
+        };
+        if let Ok(n) = command_runs(&[&["dpkg", "-l"], &["grep", "ii"], &["wc", "-l"]]) {
+            result.package_text += &format!("{} (dpkg), ", n.trim());
+        }
+        if let Ok(n) = command_runs(&[&["pacman", "-Q"], &["wc", "-l"]]) {
+            result.package_text += &format!("{} (pacman), ", n.trim());
+        }
+        result.package_text = result.package_text.trim_end_matches(", ").to_string();
+        result.disks = Disks::new_with_refreshed_list();
+        Ok(result)
+    }
+}
 
-//     // effects.add_effect(fx);
+pub fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
+    if key.kind == KeyEventKind::Press {
+        if let Some(_) = &main.err
+            && key.code == KeyCode::Enter
+        {
+            main.err = None;
+        }
+        if key.code == KeyCode::Tab {
+            crate::client::stream::reset_state(&mut main.state);
+        } else if key.code == KeyCode::Enter {
+            main.flash()?;
+        }
 
-//     // let mut last_frame = Instant::now();
+        let state = &main.state;
+        if *state == ClientState::Serve {
+            server::main_event(main, key)?;
+        } else if *state == ClientState::Trend {
+            if key.code == KeyCode::Char('m') {
+                main.extend.trend_sort = String::from("mem")
+            } else if key.code == KeyCode::Char(' ') {
+                main.extend.space = !main.extend.space;
+            } else if key.code == KeyCode::Char('c') {
+                main.extend.trend_sort = String::from("")
+            }
+        }
+        if key.code == KeyCode::Char('q') {
+            main.exit = true;
+        }
+    }
+    Ok(())
+}
 
-// }
+pub struct MutProcess {
+    pub pid: Pid,
+    pub cmd: String,
+    pub cpu_usage: f32,
+    pub memory: u64,
+    pub virtual_memory: u64,
+    pub run_time: u64,
+    pub name: String,
+}
+
+impl MutProcess {
+    pub fn from_process(process: &Process) -> MutProcess {
+        let cmd;
+        if let Some(pat) = process.exe() {
+            cmd = pat.to_string_lossy().to_string();
+        } else {
+            cmd = from_osstring(process.cmd());
+        }
+
+        MutProcess {
+            pid: process.pid(),
+            cmd,
+            cpu_usage: process.cpu_usage(),
+            memory: process.memory(),
+            virtual_memory: process.virtual_memory(),
+            run_time: process.run_time(),
+            name: process.name().to_string_lossy().to_string(),
+        }
+    }
+}

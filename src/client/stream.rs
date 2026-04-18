@@ -1,8 +1,10 @@
 use std::sync::atomic::AtomicBool;
 
-use crate::{client::{
-    client::ClientState, server
-}, ui::build::{main_ui, trend_ui}};
+use crate::{
+    ClientState,
+    client::server,
+    ui::build::{main_ui, trend_ui},
+};
 
 pub enum Event<I> {
     Tick,

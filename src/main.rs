@@ -1,7 +1,5 @@
 use seva::ui::{art, build::Tui};
 
-
-
 #[tokio::main]
 async fn main() {
     // let args: Vec<String> = env::args().collect();

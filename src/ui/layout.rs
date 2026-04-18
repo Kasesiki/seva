@@ -2,10 +2,12 @@ use ratatui::layout::{Constraint, Layout, Rect};
 
 use crate::ui::art;
 
-pub fn main_layout(area: Rect, buf: &mut ratatui::prelude::Buffer) -> (Rect, Rect, Rect, Rect, Rect) {
-
+pub fn main_layout(
+    area: Rect,
+    buf: &mut ratatui::prelude::Buffer,
+) -> (Rect, Rect, Rect, Rect, Rect) {
     let [tabs, main] = Layout::vertical([Constraint::Length(3), Constraint::Fill(0)]).areas(area);
-    
+
     if buf.area.as_size().height > 25 {
         let [art_network, mem_os_process] =
             Layout::horizontal([Constraint::Length(53), Constraint::Fill(1)]).areas(main);
@@ -41,6 +43,6 @@ pub fn trend_layout(area: Rect, _buf: &mut ratatui::prelude::Buffer) -> (Rect, R
 
     let [trend, disk] =
         Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(trend_disk);
-    
+
     (trend, disk, process)
 }
