@@ -87,20 +87,17 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
 
     app.formats.tab.deref().render(tabs, buf);
     let (memline, os, network, process) = if buf.area.as_size().height > 25 {
-        let [art_memory_os, network_process] =
-            Layout::vertical([Constraint::Length(24), Constraint::Fill(1)]).areas(main);
+        let [art_network, mem_os_process] = Layout::horizontal([Constraint::Length(53), Constraint::Fill(1)])
+        .areas(main);
+        
+        let [art, network] = Layout::vertical([Constraint::Length(24), Constraint::Fill(1)]).areas(art_network);
+        
+        let [mem_os, process] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(mem_os_process);
 
-        let [art, memory_os] =
-            Layout::horizontal([Constraint::Length(53), Constraint::Fill(1)]).areas(art_memory_os);
+        let [mem_line, os] = Layout::vertical([Constraint::Length(7), Constraint::Fill(1)]).areas(mem_os);
 
         art::render_logo(art, buf);
-
-        let [mem_line, os] =
-            Layout::vertical([Constraint::Max(7), Constraint::Fill(0)]).areas(memory_os);
-
-        let [network, process] =
-            Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(network_process);
-
+        
         (mem_line, os, network, process)
     } else {
         let [top, process] =
