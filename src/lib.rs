@@ -11,15 +11,15 @@ use ratatui::{
 };
 use sysinfo::{Motherboard, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
 
-use crate::client::{
-    client::{MutProcess, handle_key},
+use crate::{client::{
+    client::{ClientState, MutProcess, handle_key},
     server::Serve,
     system::{Config, SystemLine, byte_to_string, sec_to_time},
-    ui::{self, normal_block},
-};
+}, ui::build::{Tui, normal_block, set_alert}};
 use crate::sys::get_gpu;
 
 pub mod client;
+pub mod ui;
 pub mod sys;
 // pub mod control;
 // pub mod network;
@@ -27,7 +27,7 @@ pub mod sys;
 
 unsafe impl Send for App {}
 pub struct App {
-    pub state: crate::client::ui::ClientState,
+    pub state: crate::client::client::ClientState,
     pub exit: bool,
     pub sys: System,
     pub extend: crate::client::client::Extend,
@@ -44,7 +44,7 @@ impl App {
     pub fn new() -> Result<App, anyhow::Error> {
         let config = Config::new();
         Ok(App {
-            state: ui::ClientState::Main,
+            state: ClientState::Main,
             exit: false,
             sys: System::new_all(),
             sys_line: SystemLine::new(),
@@ -217,7 +217,7 @@ impl App {
         });
     }
 
-    pub async fn run(&mut self, mut terminal: ui::Tui) -> anyhow::Result<()> {
+    pub async fn run(&mut self, mut terminal: Tui) -> anyhow::Result<()> {
         let mut tick = tokio::time::interval(Duration::from_millis(1000));
         let mut reader = EventStream::new();
 
@@ -261,9 +261,9 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        crate::client::stream::main_ui_draw(self, area, buf);
+        crate::client::stream::ui_state(self, area, buf);
         if let Some(err) = &self.err {
-            ui::set_alert(area, buf, &err.to_string());
+            set_alert(area, buf, &err.to_string());
         }
     }
 }

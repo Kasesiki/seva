@@ -8,7 +8,8 @@ use ratatui::{
 };
 use sysinfo::System;
 
-use crate::client::ui::normal_block;
+use crate::ui::build::normal_block;
+
 
 #[derive(Debug, Clone)]
 struct OsIcon {

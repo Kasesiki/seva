@@ -14,10 +14,8 @@ use std::{io, ops::Deref, vec};
 
 use crate::{
     App,
-    client::system::{byte_to_string, sec_to_time},
+    client::system::{byte_to_string, sec_to_time}, ui::layout::{main_layout, trend_layout},
 };
-
-use super::art;
 
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
 
@@ -26,12 +24,8 @@ pub fn trend_ui(
     area: ratatui::prelude::Rect,
     buf: &mut ratatui::prelude::Buffer,
 ) {
-    let [trend_disk, process] =
-        Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
+    let (trend, disk, process) = trend_layout(area, buf);
 
-    let [trend, disk] =
-        Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(trend_disk);
-    // let [network, disk] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(network_disk);
     let pc = PercentageChart::set(
         String::from("trend"),
         vec![
@@ -83,41 +77,18 @@ pub fn trend_ui(
 }
 
 pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-    let [tabs, main] = Layout::vertical([Constraint::Length(3), Constraint::Fill(0)]).areas(area);
+
+    let (tabs, line, os, network, process) = main_layout(area, buf);
 
     app.formats.tab.deref().render(tabs, buf);
-    let (memline, os, network, process) = if buf.area.as_size().height > 25 {
-        let [art_network, mem_os_process] = Layout::horizontal([Constraint::Length(53), Constraint::Fill(1)])
-        .areas(main);
-        
-        let [art, network] = Layout::vertical([Constraint::Length(24), Constraint::Fill(1)]).areas(art_network);
-        
-        let [mem_os, process] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(mem_os_process);
-
-        let [mem_line, os] = Layout::vertical([Constraint::Length(7), Constraint::Fill(1)]).areas(mem_os);
-
-        art::render_logo(art, buf);
-        
-        (mem_line, os, network, process)
-    } else {
-        let [top, process] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(main);
-        let [cpu_mem_os, os] =
-            Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(top);
-
-        let [mem_line, network] =
-            Layout::vertical([Constraint::Max(7), Constraint::Fill(0)]).areas(cpu_mem_os);
-
-        (mem_line, os, network, process)
-    };
-
+    
     let [cpu, memory, swap] = Layout::vertical([
         Constraint::Length(3),
         Constraint::Length(3),
         Constraint::Length(4),
     ])
     .spacing(Spacing::Overlap(1))
-    .areas(memline);
+    .areas(line);
 
     let [process_top, process] =
         Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).areas(process);
@@ -125,7 +96,7 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     app.formats.mem_line.deref().render(memory, buf);
     app.formats.swap_line.deref().render(swap, buf);
     app.formats.cpu_line.deref().render(cpu, buf);
-    
+
     Paragraph::new(format!(
         "{}/{} ",
         byte_to_string(app.sys.used_memory()),
@@ -210,13 +181,7 @@ pub fn short_process(app: &App) -> (Paragraph<'static>, List<'static>) {
     )
 }
 
-#[derive(PartialEq, Clone)]
-pub enum ClientState {
-    Trend,
-    Main,
-    // Sftp,
-    Serve,
-}
+
 
 pub fn normal_block(name: &str) -> Block<'_> {
     Block::bordered()

@@ -7,7 +7,8 @@ use ratatui::{
     widgets::{List, Paragraph, Tabs, Widget},
 };
 
-use super::ui::{ClientState, normal_block};
+use crate::{client::client::ClientState, ui::build::normal_block};
+
 
 pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
     let [main, help] = Layout::vertical([Constraint::Fill(6), Constraint::Fill(1)]).areas(area);

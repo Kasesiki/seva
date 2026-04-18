@@ -1,16 +1,15 @@
 use std::sync::atomic::AtomicBool;
 
-use crate::client::{
-    server,
-    ui::{ClientState, main_ui, trend_ui},
-};
+use crate::{client::{
+    client::ClientState, server
+}, ui::build::{main_ui, trend_ui}};
 
 pub enum Event<I> {
     Tick,
     Input(I),
 }
 
-pub fn main_ui_draw(
+pub fn ui_state(
     app: &crate::App,
     area: ratatui::prelude::Rect,
     buf: &mut ratatui::prelude::Buffer,

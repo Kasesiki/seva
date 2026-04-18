@@ -4,13 +4,20 @@ use sysinfo::{Disks, Pid, Process};
 use super::{
     server::{self},
     // sftp::{self, FtpStruct},
-    ui::ClientState,
 };
 use crate::App;
 use crate::client::system::command_runs;
 use crate::client::system::from_osstring;
 
 pub static MENU_TITLES: [&str; 3] = ["Home", "Control", "Terminal"];
+
+#[derive(PartialEq, Clone)]
+pub enum ClientState {
+    Trend,
+    Main,
+    // Sftp,
+    Serve,
+}
 
 #[derive(Default)]
 pub struct Extend {
