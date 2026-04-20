@@ -107,7 +107,7 @@ impl App {
         self.extend.disks.iter_mut().for_each(|disk| {
             disk.refresh();
         });
-        self.network = Networks::new_with_refreshed_list();
+        self.network.refresh(true);
         self.sys.refresh_cpu_usage();
         self.sys.refresh_memory();
         self.merge_process();
@@ -134,7 +134,11 @@ impl App {
         self.sys.refresh_processes_specifics(
             ProcessesToUpdate::All,
             true,
-            ProcessRefreshKind::everything(),
+            ProcessRefreshKind::nothing()
+                .with_cpu()
+                .with_memory()
+                .with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
+                .without_tasks(),
         );
         let mut memory_verify: HashMap<String, MutProcess> = HashMap::new();
         for item in self.sys.processes().values() {

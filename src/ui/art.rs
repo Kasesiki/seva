@@ -23,6 +23,17 @@ struct Color {
     color: ratatui::style::Color,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct CachedGlyph {
+    char: char,
+    color: ratatui::style::Color,
+}
+
+#[derive(Debug, Clone, Default)]
+struct RenderedIcon {
+    lines: Vec<Vec<CachedGlyph>>,
+}
+
 static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
     [
         OsIcon {
@@ -205,22 +216,45 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
     ]
 });
 
-static NORMAL_ICON: LazyLock<OsIcon> = LazyLock::new(|| OsIcon {
-    name: "",
-    logo: [
-        "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    ],
-    color: Vec::from(&[]),
-});
+static NORMAL_RENDERED_ICON: LazyLock<RenderedIcon> = LazyLock::new(RenderedIcon::default);
+static CURRENT_DISTRO: LazyLock<String> = LazyLock::new(System::distribution_id);
+static RENDERED_ICON_MAP: OnceCell<HashMap<String, RenderedIcon>> = OnceCell::new();
 
-static ICON_MAP: OnceCell<HashMap<String, OsIcon>> = OnceCell::new();
+fn build_rendered_icon(icon: &OsIcon) -> RenderedIcon {
+    let default_color = icon
+        .color
+        .iter()
+        .find(|color| color.char == '\\')
+        .map(|color| color.color)
+        .unwrap_or(ratatui::style::Color::Reset);
+
+    RenderedIcon {
+        lines: icon
+            .logo
+            .iter()
+            .map(|line| {
+                line.chars()
+                    .map(|char| CachedGlyph {
+                        char,
+                        color: icon
+                            .color
+                            .iter()
+                            .find(|color| color.char == char)
+                            .map(|color| color.color)
+                            .unwrap_or(default_color),
+                    })
+                    .collect()
+            })
+            .collect(),
+    }
+}
 
 pub fn init_art() {
     let mut temp = HashMap::new();
-    for icon in OS_ICONS.clone() {
-        temp.insert(String::from(icon.name), icon.clone());
+    for icon in OS_ICONS.iter() {
+        temp.insert(String::from(icon.name), build_rendered_icon(icon));
     }
-    ICON_MAP.set(temp).unwrap();
+    RENDERED_ICON_MAP.set(temp).unwrap();
 }
 
 #[allow(clippy::cast_possible_truncation)]
@@ -242,28 +276,18 @@ pub fn render_logo(area: Rect, buf: &mut Buffer) {
         let cell = &mut buf[(area.left() + 48, area.top() + i)];
         cell.set_char('|');
     }
-    let icon = ICON_MAP
+    let icon = RENDERED_ICON_MAP
         .get()
         .unwrap()
-        .get(&System::distribution_id())
-        .unwrap_or(&NORMAL_ICON);
-    for (y, line) in icon.logo.iter().enumerate() {
-        for (x, ch) in line.chars().enumerate() {
+        .get(CURRENT_DISTRO.as_str())
+        .unwrap_or(&NORMAL_RENDERED_ICON);
+    for (y, line) in icon.lines.iter().enumerate() {
+        for (x, glyph) in line.iter().enumerate() {
             let x = area.left() + x as u16 + 1;
             let y = area.top() + y as u16 + 2;
             let cell: &mut ratatui::buffer::Cell = &mut buf[(x, y)];
-            let mut reset_color = ratatui::style::Color::Reset;
-            for color in &icon.color {
-                if ch == color.char {
-                    cell.set_fg(color.color);
-                } else if color.char == '\\' {
-                    reset_color = color.color;
-                }
-            }
-            if cell.fg == ratatui::style::Color::Reset {
-                cell.set_fg(reset_color);
-            }
-            cell.set_char(ch);
+            cell.set_fg(glyph.color);
+            cell.set_char(glyph.char);
         }
     }
 }
