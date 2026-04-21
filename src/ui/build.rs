@@ -10,15 +10,57 @@ use ratatui::{
         Axis, Block, Chart, Clear, Dataset, GraphType, List, Padding, Paragraph, Widget, Wrap,
     },
 };
-use std::{io, ops::Deref, vec};
+use sysinfo::{Cpu, Motherboard, Product};
+use std::{collections::HashMap, io, ops::Deref, vec};
 
 use crate::{
     App,
     client::system::{byte_to_string, sec_to_time},
-    ui::layout::{main_layout, trend_layout},
+    ui::layout::{info_layout, main_layout, trend_layout},
 };
 
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
+
+pub fn info_ui(
+    app: &crate::App,
+    area: ratatui::prelude::Rect,
+    buf: &mut ratatui::prelude::Buffer,
+) {
+    let (hello, motherboard, cpu, memory) = info_layout(area, buf);
+    Paragraph::new(format!("hello? xiaxiaobai"))
+    .block(normal_block(""))
+    .render(hello, buf);
+    if let Some (mother) = Motherboard::new() {
+        Paragraph::new(format!("name: {:?}\nvendor: {:?}\nversion: {:?}\nserial number: {:?}", mother.name(), mother.vendor_name(), mother.version(), mother.serial_number()))
+        .block(normal_block("motherboard"))
+        .render(motherboard, buf);
+    }
+    let [cpu1, cpu2] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(cpu);
+    let mut cpu_text = String::new();
+    let mut cpu_text_2 = String::new();
+    let mut cpu_iter = app.sys.cpus().iter();
+    let mut i = 0;
+    while let Some(cpu) = cpu_iter.next() {
+        if let Some(cpu2) = cpu_iter.next() {
+            cpu_text += &format!("cpu{}: {}Mhz   cpu{}: {}Mhz\n", i, cpu.frequency(), i+1, cpu2.frequency());
+            cpu_text_2 += &format!("cpu{}: {}%   cpu{}: {}%\n", i, cpu.cpu_usage(), i+1, cpu2.cpu_usage());
+            i += 2;
+        } else {
+            cpu_text += &format!("cpu{}: {}Mhz", i, cpu.frequency());
+            cpu_text_2 += &format!("cpu{}: {}%", i, cpu.cpu_usage());
+        }
+    }
+    Paragraph::new(cpu_text)
+    .block(normal_block("cpu"))
+    .render(cpu1, buf);
+    Paragraph::new(cpu_text_2)
+    .block(normal_block("cpu"))
+    .render(cpu2, buf);
+    Paragraph::new(format!("name: {:?}\nfamily: {:?}\nserial_number: {:?}\nversion: {:?}\nvendor: {:?}", Product::name(), Product::family(), Product::serial_number(), Product::version(), Product::vendor_name()))
+    .block(normal_block("product"))
+    .render(memory, buf);
+
+}
 
 pub fn trend_ui(
     app: &crate::App,
@@ -313,3 +355,4 @@ impl Alert {
             .render(create_pop(self.x, self.y, area), buf);
     }
 }
+

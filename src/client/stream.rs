@@ -1,14 +1,21 @@
 use std::sync::atomic::AtomicBool;
 
 use crate::{
-    ClientState,
     client::server,
-    ui::build::{main_ui, trend_ui},
+    ui::build::{info_ui, main_ui, trend_ui},
 };
 
 pub enum Event<I> {
     Tick,
     Input(I),
+}
+
+#[derive(PartialEq, Clone)]
+pub enum ClientState {
+    Trend,
+    Main,
+    Info,
+    Serve,
 }
 
 pub fn ui_state(
@@ -19,6 +26,7 @@ pub fn ui_state(
     match app.state {
         ClientState::Trend => trend_ui(app, area, buf),
         ClientState::Main => main_ui(app, area, buf),
+        ClientState::Info => info_ui(app, area, buf),
         ClientState::Serve => server::main_ui(app, area, buf),
     }
 }
@@ -31,10 +39,13 @@ pub fn reset_state(state: &mut ClientState) {
             *state = ClientState::Trend;
         }
         ClientState::Trend => {
+            *state = ClientState::Info;
+        }
+        ClientState::Info => {
             if SERVE_READY.load(std::sync::atomic::Ordering::Relaxed) {
                 *state = ClientState::Serve;
             } else {
-                *state = ClientState::Main;
+                *state = ClientState::Main; 
             }
         }
         ClientState::Serve => {

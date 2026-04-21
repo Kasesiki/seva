@@ -13,7 +13,7 @@ use sysinfo::{
     Disks, Motherboard, Networks, Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System,
 };
 
-use crate::sys::get_gpu;
+use crate::{client::stream::ClientState, sys::get_gpu};
 use crate::{
     client::{
         server::{self, Serve},
@@ -108,7 +108,7 @@ impl App {
             disk.refresh();
         });
         self.network.refresh(true);
-        self.sys.refresh_cpu_usage();
+        self.sys.refresh_cpu_all();
         self.sys.refresh_memory();
         self.merge_process();
         self.sys_line.swap_data.force_queue(
@@ -281,13 +281,7 @@ impl Format {
     }
 }
 
-#[derive(PartialEq, Clone)]
-pub enum ClientState {
-    Trend,
-    Main,
-    // Sftp,
-    Serve,
-}
+
 
 #[derive(Default)]
 pub struct Extend {
