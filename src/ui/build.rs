@@ -42,12 +42,12 @@ pub fn info_ui(
     let mut i = 0;
     while let Some(cpu) = cpu_iter.next() {
         if let Some(cpu2) = cpu_iter.next() {
-            cpu_text += &format!("cpu{}: {}Mhz   cpu{}: {}Mhz\n", i, cpu.frequency(), i+1, cpu2.frequency());
-            cpu_text_2 += &format!("cpu{}: {}%   cpu{}: {}%\n", i, cpu.cpu_usage(), i+1, cpu2.cpu_usage());
+            cpu_text += &format!("cpu{:>2}:  {:>4}Mhz   cpu{:>2}:  {:>4}Mhz\n", i, cpu.frequency(), i+1, cpu2.frequency());
+            cpu_text_2 += &format!("cpu{:>2}:  {:>5.2}%   cpu{:>2}:  {:>5.2}%\n", i, cpu.cpu_usage(), i+1, cpu2.cpu_usage());
             i += 2;
         } else {
-            cpu_text += &format!("cpu{}: {}Mhz", i, cpu.frequency());
-            cpu_text_2 += &format!("cpu{}: {}%", i, cpu.cpu_usage());
+            cpu_text += &format!("cpu{:>2}:  {:>4}Mhz", i, cpu.frequency());
+            cpu_text_2 += &format!("cpu{:>2}:  {:>5.2}%", i, cpu.cpu_usage());
         }
     }
     Paragraph::new(cpu_text)
