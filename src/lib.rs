@@ -281,8 +281,6 @@ impl Format {
     }
 }
 
-
-
 #[derive(Default)]
 pub struct Extend {
     pub package_text: String,

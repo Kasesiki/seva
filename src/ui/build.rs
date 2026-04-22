@@ -10,38 +10,49 @@ use ratatui::{
         Axis, Block, Chart, Clear, Dataset, GraphType, List, Padding, Paragraph, Widget, Wrap,
     },
 };
-use sysinfo::{Cpu, Motherboard, Product};
-use std::{collections::HashMap, io, ops::Deref, vec};
+use std::{io, ops::Deref, vec};
+use sysinfo::Motherboard;
 
 use crate::{
-    App, client::system::{byte_to_string, sec_to_time}, sys::{decode_dmi, extract_memory_structures}, ui::layout::{info_layout, main_layout, trend_layout}
+    App,
+    client::system::{byte_to_string, sec_to_time},
+    sys::{decode_dmi, extract_memory_structures},
+    ui::layout::{info_layout, main_layout, trend_layout},
 };
 
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
 
-pub fn info_ui(
-    app: &crate::App,
-    area: ratatui::prelude::Rect,
-    buf: &mut ratatui::prelude::Buffer,
-) {
+pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
     let (hello, motherboard, cpu, memory) = info_layout(area, buf);
 
     let cpubrand = app.sys.cpus()[0].brand();
-    
-    Paragraph::new(format!("hello? xiaxiaobai"))
-    .block(normal_block(""))
-    .render(hello, buf);
-    if let Some (mother) = Motherboard::new() {
-        let mut text = format!("name: {:?} {:?}\ncpu name: {}\ncpu logic number: {}\n", mother.vendor_name(), mother.name(), cpubrand, app.sys.cpus().len());
+    let dmi = decode_dmi();
+    Paragraph::new("hello? xiaxiaobai")
+        .block(normal_block(""))
+        .render(hello, buf);
+    if let Some(mother) = Motherboard::new() {
+        let mut text = format!(
+            "name: {:?} {:?}\ncpu name: {}\ncpu logic number: {}\n",
+            mother.vendor_name(),
+            mother.name(),
+            cpubrand,
+            app.sys.cpus().len()
+        );
 
-        if let Ok(dmi) = decode_dmi().inspect_err(|e| text += &e.to_string()) {
-            let memory = extract_memory_structures(&dmi).unwrap();
-            text += &format!("机器最大上载内存：{}", byte_to_string(memory.arrays[0].max_capacity_bytes.unwrap_or(0)));
-        } 
+        if let Ok(dmi) = dmi.as_ref().inspect_err(|e| text += &e.to_string()) {
+            let memory = extract_memory_structures(dmi).unwrap();
+            text += &format!(
+                "机器最大上载内存：{}\n",
+                byte_to_string(memory.arrays[0].max_capacity_bytes.unwrap_or(0))
+            );
+            text += &format!("物理插槽数：{}\n", memory.arrays[0].device_slots);
+        } else {
+            text += "以root权限启动以查看内存信息";
+        }
         Paragraph::new(text)
-        .wrap(Wrap { trim: true })
-        .block(normal_block("product"))
-        .render(motherboard, buf);
+            .wrap(Wrap { trim: true })
+            .block(normal_block("product"))
+            .render(motherboard, buf);
     }
     let [cpu1, cpu2] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(cpu);
 
@@ -51,8 +62,20 @@ pub fn info_ui(
     let mut i = 0;
     while let Some(cpu) = cpu_iter.next() {
         if let Some(cpu2) = cpu_iter.next() {
-            cpu_text += &format!("cpu{:>2}:  {:>4}Mhz   cpu{:>2}:  {:>4}Mhz\n", i, cpu.frequency(), i+1, cpu2.frequency());
-            cpu_text_2 += &format!("cpu{:>2}:  {:>5.2}%   cpu{:>2}:  {:>5.2}%\n", i, cpu.cpu_usage(), i+1, cpu2.cpu_usage());
+            cpu_text += &format!(
+                "cpu{:>2}:  {:>4}Mhz   cpu{:>2}:  {:>4}Mhz\n",
+                i,
+                cpu.frequency(),
+                i + 1,
+                cpu2.frequency()
+            );
+            cpu_text_2 += &format!(
+                "cpu{:>2}:  {:>5.2}%   cpu{:>2}:  {:>5.2}%\n",
+                i,
+                cpu.cpu_usage(),
+                i + 1,
+                cpu2.cpu_usage()
+            );
             i += 2;
         } else {
             cpu_text += &format!("cpu{:>2}:  {:>4}Mhz", i, cpu.frequency());
@@ -60,12 +83,26 @@ pub fn info_ui(
         }
     }
     Paragraph::new(cpu_text)
-    .block(normal_block("cpu"))
-    .render(cpu1, buf);
+        .block(normal_block("cpu"))
+        .render(cpu1, buf);
     Paragraph::new(cpu_text_2)
-    .block(normal_block("cpu"))
-    .render(cpu2, buf);
+        .block(normal_block("cpu"))
+        .render(cpu2, buf);
 
+    let mut mem_text = String::new();
+    if let Ok(dmi) = &dmi {
+        let memory = extract_memory_structures(dmi).unwrap();
+        let i = 1;
+        memory.devices.iter().for_each(|x| {
+            if x.memory_type != "Unknown" {
+                mem_text += &format!("slot{i}: \n   内存类型: {}\n   内存大小: {}\n   内存型号: {:?}\n   内存制造商: {:?}\n   内存速度: {}\n   内存配置速度: {}"
+                , x.memory_type, byte_to_string(x.size_bytes.unwrap_or(0)), x.part_number, x.manufacturer, x.speed_mt_s.unwrap_or_default(), x.configured_speed_mt_s.unwrap_or_default() );
+            }
+        });
+    }
+    Paragraph::new(mem_text)
+        .block(normal_block("mem"))
+        .render(memory, buf);
 }
 
 pub fn trend_ui(
@@ -361,4 +398,3 @@ impl Alert {
             .render(create_pop(self.x, self.y, area), buf);
     }
 }
-

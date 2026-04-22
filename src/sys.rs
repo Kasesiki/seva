@@ -261,9 +261,11 @@ fn parse_memory_structures(
                     location: array.location.to_string(),
                     usage: array.r#use.to_string(),
                     error_correction: array.memory_error_correction.to_string(),
-                    max_capacity_bytes: array
-                        .extended_maximum_capacity
-                        .or_else(|| array.maximum_capacity.map(|capacity_kib| capacity_kib as u64 * 1024)),
+                    max_capacity_bytes: array.extended_maximum_capacity.or_else(|| {
+                        array
+                            .maximum_capacity
+                            .map(|capacity_kib| capacity_kib as u64 * 1024)
+                    }),
                     device_slots: array.number_of_memory_devices,
                 });
             }
@@ -276,7 +278,9 @@ fn parse_memory_structures(
                     size_bytes: memory_device_size_bytes(&device),
                     memory_type: format!("{:?}", device.memory_type),
                     form_factor: format!("{:?}", device.form_factor),
-                    speed_mt_s: device.extended_speed.or_else(|| device.speed.map(u32::from)),
+                    speed_mt_s: device
+                        .extended_speed
+                        .or_else(|| device.speed.map(u32::from)),
                     configured_speed_mt_s: device
                         .extended_configured_memory_speed
                         .or_else(|| device.configured_memory_speed.map(u32::from)),
@@ -309,7 +313,8 @@ fn memory_device_size_bytes(memory_device: &MemoryDevice<'_>) -> Option<u64> {
     }
 
     if size == 0x7fff {
-        return (memory_device.extended_size != 0).then_some(memory_device.extended_size as u64 * 1024 * 1024);
+        return (memory_device.extended_size != 0)
+            .then_some(memory_device.extended_size as u64 * 1024 * 1024);
     }
 
     if (size & 0x8000) != 0 {

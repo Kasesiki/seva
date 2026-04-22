@@ -45,7 +45,7 @@ pub fn reset_state(state: &mut ClientState) {
             if SERVE_READY.load(std::sync::atomic::Ordering::Relaxed) {
                 *state = ClientState::Serve;
             } else {
-                *state = ClientState::Main; 
+                *state = ClientState::Main;
             }
         }
         ClientState::Serve => {
