@@ -275,6 +275,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dmidecode"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a898086945b8e1c1e12f0996773ae65442d84f8dcafd5ab88a4c80b1da3d3008"
+dependencies = [
+ "bitflags 2.10.0",
+ "uuid",
+]
+
+[[package]]
 name = "document-features"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1155,6 +1165,7 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "crossterm",
+ "dmidecode",
  "futures",
  "once_cell",
  "queue",

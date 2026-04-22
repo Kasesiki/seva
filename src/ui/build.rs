@@ -14,9 +14,7 @@ use sysinfo::{Cpu, Motherboard, Product};
 use std::{collections::HashMap, io, ops::Deref, vec};
 
 use crate::{
-    App,
-    client::system::{byte_to_string, sec_to_time},
-    ui::layout::{info_layout, main_layout, trend_layout},
+    App, client::system::{byte_to_string, sec_to_time}, sys::{decode_dmi, extract_memory_structures}, ui::layout::{info_layout, main_layout, trend_layout}
 };
 
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
@@ -34,7 +32,14 @@ pub fn info_ui(
     .block(normal_block(""))
     .render(hello, buf);
     if let Some (mother) = Motherboard::new() {
-        Paragraph::new(format!("name: {:?} {:?}\ncpu name: {}\ncpu logic number: {}", mother.vendor_name(), mother.name(), cpubrand, app.sys.cpus().len()))
+        let mut text = format!("name: {:?} {:?}\ncpu name: {}\ncpu logic number: {}\n", mother.vendor_name(), mother.name(), cpubrand, app.sys.cpus().len());
+
+        if let Ok(dmi) = decode_dmi().inspect_err(|e| text += &e.to_string()) {
+            let memory = extract_memory_structures(&dmi).unwrap();
+            text += &format!("机器最大上载内存：{}", byte_to_string(memory.arrays[0].max_capacity_bytes.unwrap_or(0)));
+        } 
+        Paragraph::new(text)
+        .wrap(Wrap { trim: true })
         .block(normal_block("product"))
         .render(motherboard, buf);
     }

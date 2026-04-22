@@ -3,7 +3,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use dmidecode::{EntryPoint, MemoryDevice, Structure};
+
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
+const DMI_ENTRY_POINT_PATH: &str = "/sys/firmware/dmi/tables/smbios_entry_point";
+const DMI_TABLE_PATH: &str = "/sys/firmware/dmi/tables/DMI";
 // const INTEL_VENDOR_ID: u16 = 0x8086;
 // const MEMORY_CONTROLLER_CLASS: u32 = 0x05;
 const DISPLAY_CONTROLLER_CLASS: u32 = 0x03;
@@ -19,6 +23,73 @@ pub struct PciGpuDevice {
     pub device_name: Option<String>,
     pub driver: Option<String>,
     pub drm_nodes: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DmiDecodedData {
+    pub entry_point: EntryPoint,
+    pub dmi_table: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct DmiMemoryInfo {
+    pub arrays: Vec<DmiPhysicalMemoryArrayInfo>,
+    pub devices: Vec<DmiMemoryDeviceInfo>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DmiPhysicalMemoryArrayInfo {
+    pub handle: u16,
+    pub location: String,
+    pub usage: String,
+    pub error_correction: String,
+    pub max_capacity_bytes: Option<u64>,
+    pub device_slots: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct DmiMemoryDeviceInfo {
+    pub handle: u16,
+    pub physical_memory_handle: u16,
+    pub device_locator: String,
+    pub bank_locator: String,
+    pub size_bytes: Option<u64>,
+    pub memory_type: String,
+    pub form_factor: String,
+    pub speed_mt_s: Option<u32>,
+    pub configured_speed_mt_s: Option<u32>,
+    pub manufacturer: Option<String>,
+    pub serial: Option<String>,
+    pub part_number: Option<String>,
+}
+
+pub fn decode_dmi() -> io::Result<DmiDecodedData> {
+    let entry_point_buffer = fs::read(DMI_ENTRY_POINT_PATH)?;
+    let entry_point = EntryPoint::search(&entry_point_buffer).map_err(invalid_dmi_data)?;
+    let dmi_table = fs::read(DMI_TABLE_PATH)?;
+
+    Ok(DmiDecodedData {
+        entry_point,
+        dmi_table,
+    })
+}
+
+pub fn extract_memory_structures(decoded: &DmiDecodedData) -> io::Result<DmiMemoryInfo> {
+    let mut last_error = None;
+
+    for buffer in dmi_decode_candidates(decoded) {
+        match parse_memory_structures(&decoded.entry_point, buffer) {
+            Ok(memory_info) => return Ok(memory_info),
+            Err(err) => last_error = Some(err),
+        }
+    }
+
+    Err(io::Error::new(
+        io::ErrorKind::InvalidData,
+        last_error
+            .map(|err| err.to_string())
+            .unwrap_or_else(|| "failed to decode DMI memory structures".to_string()),
+    ))
 }
 
 pub fn get_pci_devices() -> io::Result<Vec<PciGpuDevice>> {
@@ -173,4 +244,90 @@ fn split_id_and_name(line: &str) -> Option<(&str, &str)> {
     let split_at = line.find(char::is_whitespace)?;
     let (id, rest) = line.split_at(split_at);
     Some((id, rest.trim()))
+}
+
+fn parse_memory_structures(
+    entry_point: &EntryPoint,
+    dmi_table: &[u8],
+) -> Result<DmiMemoryInfo, dmidecode::MalformedStructureError> {
+    let mut arrays = Vec::new();
+    let mut devices = Vec::new();
+
+    for structure in entry_point.structures(dmi_table) {
+        match structure? {
+            Structure::PhysicalMemoryArray(array) => {
+                arrays.push(DmiPhysicalMemoryArrayInfo {
+                    handle: array.handle,
+                    location: array.location.to_string(),
+                    usage: array.r#use.to_string(),
+                    error_correction: array.memory_error_correction.to_string(),
+                    max_capacity_bytes: array
+                        .extended_maximum_capacity
+                        .or_else(|| array.maximum_capacity.map(|capacity_kib| capacity_kib as u64 * 1024)),
+                    device_slots: array.number_of_memory_devices,
+                });
+            }
+            Structure::MemoryDevice(device) => {
+                devices.push(DmiMemoryDeviceInfo {
+                    handle: device.handle,
+                    physical_memory_handle: device.physical_memory_handle,
+                    device_locator: device.device_locator.to_string(),
+                    bank_locator: device.bank_locator.to_string(),
+                    size_bytes: memory_device_size_bytes(&device),
+                    memory_type: format!("{:?}", device.memory_type),
+                    form_factor: format!("{:?}", device.form_factor),
+                    speed_mt_s: device.extended_speed.or_else(|| device.speed.map(u32::from)),
+                    configured_speed_mt_s: device
+                        .extended_configured_memory_speed
+                        .or_else(|| device.configured_memory_speed.map(u32::from)),
+                    manufacturer: non_empty(device.manufacturer),
+                    serial: non_empty(device.serial),
+                    part_number: non_empty(device.part_number),
+                });
+            }
+            _ => {}
+        }
+    }
+
+    Ok(DmiMemoryInfo { arrays, devices })
+}
+
+fn dmi_decode_candidates(decoded: &DmiDecodedData) -> Vec<&[u8]> {
+    let mut candidates = Vec::with_capacity(2);
+    let address = decoded.entry_point.smbios_address() as usize;
+    if address != 0 && address < decoded.dmi_table.len() {
+        candidates.push(&decoded.dmi_table[address..]);
+    }
+    candidates.push(decoded.dmi_table.as_slice());
+    candidates
+}
+
+fn memory_device_size_bytes(memory_device: &MemoryDevice<'_>) -> Option<u64> {
+    let size = memory_device.size?;
+    if size == 0 {
+        return None;
+    }
+
+    if size == 0x7fff {
+        return (memory_device.extended_size != 0).then_some(memory_device.extended_size as u64 * 1024 * 1024);
+    }
+
+    if (size & 0x8000) != 0 {
+        return Some((u64::from(size & 0x7fff)) * 1024);
+    }
+
+    Some(u64::from(size) * 1024 * 1024)
+}
+
+fn non_empty(text: &str) -> Option<String> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn invalid_dmi_data(error: impl std::fmt::Display) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, error.to_string())
 }
