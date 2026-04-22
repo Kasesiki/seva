@@ -27,15 +27,19 @@ pub fn info_ui(
     buf: &mut ratatui::prelude::Buffer,
 ) {
     let (hello, motherboard, cpu, memory) = info_layout(area, buf);
+
+    let cpubrand = app.sys.cpus()[0].brand();
+    
     Paragraph::new(format!("hello? xiaxiaobai"))
     .block(normal_block(""))
     .render(hello, buf);
     if let Some (mother) = Motherboard::new() {
-        Paragraph::new(format!("name: {:?}\nvendor: {:?}\nversion: {:?}\nserial number: {:?}", mother.name(), mother.vendor_name(), mother.version(), mother.serial_number()))
-        .block(normal_block("motherboard"))
+        Paragraph::new(format!("name: {:?} {:?}\ncpu name: {}\ncpu logic number: {}", mother.vendor_name(), mother.name(), cpubrand, app.sys.cpus().len()))
+        .block(normal_block("product"))
         .render(motherboard, buf);
     }
     let [cpu1, cpu2] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(cpu);
+
     let mut cpu_text = String::new();
     let mut cpu_text_2 = String::new();
     let mut cpu_iter = app.sys.cpus().iter();
@@ -56,9 +60,6 @@ pub fn info_ui(
     Paragraph::new(cpu_text_2)
     .block(normal_block("cpu"))
     .render(cpu2, buf);
-    Paragraph::new(format!("name: {:?}\nfamily: {:?}\nserial_number: {:?}\nversion: {:?}\nvendor: {:?}", Product::name(), Product::family(), Product::serial_number(), Product::version(), Product::vendor_name()))
-    .block(normal_block("product"))
-    .render(memory, buf);
 
 }
 
