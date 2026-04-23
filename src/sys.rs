@@ -269,7 +269,7 @@ fn parse_memory_structures(
     for structure in entry_point.structures(dmi_table) {
         match structure? {
             Structure::PhysicalMemoryArray(array) => {
-                max_capacity = array.maximum_capacity.unwrap_or_default() as u64 * 1024 * 1024;
+                max_capacity = array.maximum_capacity.unwrap_or_default() as u64 * 1024;
                 max_slots = array.number_of_memory_devices;
             }
             Structure::MemoryDevice(device) => {
