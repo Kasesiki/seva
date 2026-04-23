@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use dmidecode::{EntryPoint, Structure, memory_device::MemoryTechnology};
+use dmidecode::{EntryPoint, MalformedStructureError, Structure, Structures, memory_device::MemoryTechnology};
 
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
 const DMI_ENTRY_POINT_PATH: &str = "/sys/firmware/dmi/tables/smbios_entry_point";
@@ -29,6 +29,12 @@ pub struct PciGpuDevice {
 pub struct DmiDecodedData {
     pub entry_point: EntryPoint,
     pub dmi_table: Vec<u8>,
+}
+
+impl DmiDecodedData {
+    pub fn structures<'buffer>(&'buffer self) -> Structures<'buffer> {
+        self.entry_point.structures(&self.dmi_table)
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -79,30 +85,25 @@ pub struct DmiPhysicalMemoryArrayInfo {
 pub fn decode_dmi() -> io::Result<DmiDecodedData> {
     let entry_point_buffer = fs::read(DMI_ENTRY_POINT_PATH)?;
     let entry_point = EntryPoint::search(&entry_point_buffer).map_err(invalid_dmi_data)?;
-    let dmi_table = fs::read(DMI_TABLE_PATH)?;
+    let mut dmi_table = fs::read(DMI_TABLE_PATH)?;
 
+    let address = entry_point.smbios_address() as usize;
+    if address != 0 && address < dmi_table.len() {
+        dmi_table = dmi_table[address..].to_vec();
+    } else {
+        dmi_table = dmi_table.as_slice().to_vec();
+    }
     Ok(DmiDecodedData {
         entry_point,
         dmi_table,
     })
 }
 
-pub fn extract_memory_structures(decoded: &DmiDecodedData) -> io::Result<DmiMemoryInfo> {
-    let mut last_error = None;
-
-    for buffer in dmi_decode_candidates(decoded) {
-        match parse_memory_structures(&decoded.entry_point, buffer) {
-            Ok(memory_info) => return Ok(memory_info),
-            Err(err) => last_error = Some(err),
-        }
+pub fn extract_memory_structures(decoded: &DmiDecodedData) -> Result<DmiMemoryInfo, MalformedStructureError> {
+    match parse_memory_structures(&decoded) {
+        Ok(memory_info) => return Ok(memory_info),
+        Err(err) => return Err(err),
     }
-
-    Err(io::Error::new(
-        io::ErrorKind::InvalidData,
-        last_error
-            .map(|err| err.to_string())
-            .unwrap_or_else(|| "failed to decode DMI memory structures".to_string()),
-    ))
 }
 
 pub fn get_pci_devices() -> io::Result<Vec<PciGpuDevice>> {
@@ -260,13 +261,12 @@ fn split_id_and_name(line: &str) -> Option<(&str, &str)> {
 }
 
 fn parse_memory_structures(
-    entry_point: &EntryPoint,
-    dmi_table: &[u8],
+    decoded: &DmiDecodedData,
 ) -> Result<DmiMemoryInfo, dmidecode::MalformedStructureError> {
     let mut devices = Vec::new();
     let mut max_capacity = 0;
     let mut max_slots = 0;
-    for structure in entry_point.structures(dmi_table) {
+    for structure in decoded.structures() {
         match structure? {
             Structure::PhysicalMemoryArray(array) => {
                 max_capacity = array.maximum_capacity.unwrap_or_default() as u64 * 1024;
@@ -308,16 +308,6 @@ fn parse_memory_structures(
     }
 
     Ok(DmiMemoryInfo { max_capacity, max_slots, devices })
-}
-
-fn dmi_decode_candidates(decoded: &DmiDecodedData) -> Vec<&[u8]> {
-    let mut candidates = Vec::with_capacity(2);
-    let address = decoded.entry_point.smbios_address() as usize;
-    if address != 0 && address < decoded.dmi_table.len() {
-        candidates.push(&decoded.dmi_table[address..]);
-    }
-    candidates.push(decoded.dmi_table.as_slice());
-    candidates
 }
 
 fn invalid_dmi_data(error: impl std::fmt::Display) -> io::Error {
