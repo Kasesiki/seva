@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use dmidecode::{EntryPoint, PhysicalMemoryArray, Structure, memory_device::MemoryTechnology};
+use dmidecode::{EntryPoint, Structure, memory_device::MemoryTechnology};
 
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
 const DMI_ENTRY_POINT_PATH: &str = "/sys/firmware/dmi/tables/smbios_entry_point";
@@ -33,8 +33,18 @@ pub struct DmiDecodedData {
 
 #[derive(Debug, Clone, Default)]
 pub struct DmiMemoryInfo {
-    pub arrays: Vec<PhysicalMemoryArray>,
+    pub max_capacity: u64,
+    pub max_slots: u16,
     pub devices: Vec<MemoryDeviceStatic>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PhysicalMemoryArrayStatic {
+    pub location: String,
+    pub usage: String,
+    pub error_correction: String,
+    pub max_capacity_bytes: Option<u64>,
+    pub device_slots: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -253,13 +263,14 @@ fn parse_memory_structures(
     entry_point: &EntryPoint,
     dmi_table: &[u8],
 ) -> Result<DmiMemoryInfo, dmidecode::MalformedStructureError> {
-    let mut arrays = Vec::new();
     let mut devices = Vec::new();
-
+    let mut max_capacity = 0;
+    let mut max_slots = 0;
     for structure in entry_point.structures(dmi_table) {
         match structure? {
             Structure::PhysicalMemoryArray(array) => {
-                arrays.push(array);
+                max_capacity = array.maximum_capacity.unwrap_or_default() as u64 * 1024 * 1024;
+                max_slots = array.number_of_memory_devices;
             }
             Structure::MemoryDevice(device) => {
                 if device.memory_type == dmidecode::memory_device::Type::Unknown {
@@ -296,7 +307,7 @@ fn parse_memory_structures(
         }
     }
 
-    Ok(DmiMemoryInfo { arrays, devices })
+    Ok(DmiMemoryInfo { max_capacity, max_slots, devices })
 }
 
 fn dmi_decode_candidates(decoded: &DmiDecodedData) -> Vec<&[u8]> {

@@ -43,9 +43,9 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             let memory = extract_memory_structures(dmi).unwrap();
             text += &format!(
                 "机器最大上载内存：{}\n",
-                byte_to_string(memory.arrays[0].maximum_capacity.unwrap_or_default() as u64)
+                byte_to_string(memory.max_capacity)
             );
-            text += &format!("物理插槽数：{}\n", memory.arrays[0].number_of_memory_devices);
+            text += &format!("物理插槽数：{}\n", memory.max_slots);
         } else {
             text += "以root权限启动以查看内存信息";
         }
