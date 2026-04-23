@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use dmidecode::{EntryPoint, MemoryDevice, Structure};
+use dmidecode::{EntryPoint, PhysicalMemoryArray, Structure, memory_device::MemoryTechnology};
 
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
 const DMI_ENTRY_POINT_PATH: &str = "/sys/firmware/dmi/tables/smbios_entry_point";
@@ -33,8 +33,27 @@ pub struct DmiDecodedData {
 
 #[derive(Debug, Clone, Default)]
 pub struct DmiMemoryInfo {
-    pub arrays: Vec<DmiPhysicalMemoryArrayInfo>,
-    pub devices: Vec<DmiMemoryDeviceInfo>,
+    pub arrays: Vec<PhysicalMemoryArray>,
+    pub devices: Vec<MemoryDeviceStatic>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MemoryDeviceStatic {
+    pub total_width: u16,
+    pub ecc: bool, //如果total_width != data_width则为true
+    pub size: u64, //检测字段是否为7FFFh如果是则使用extended_size
+    pub memory_type: dmidecode::memory_device::Type,
+    pub max_speed: u16, //MT/s
+    pub manufacturer: String,
+    pub bank_locator: String,
+    pub serial_number: String,
+    pub part_number: String,
+    pub configured_speed: u16, //MT/s
+    pub min_voltage: u16,
+    pub max_voltage: u16,
+    pub configured_voltage: u16,
+    pub trchnology: MemoryTechnology,
+
 }
 
 #[derive(Debug, Clone)]
@@ -45,22 +64,6 @@ pub struct DmiPhysicalMemoryArrayInfo {
     pub error_correction: String,
     pub max_capacity_bytes: Option<u64>,
     pub device_slots: u16,
-}
-
-#[derive(Debug, Clone)]
-pub struct DmiMemoryDeviceInfo {
-    pub handle: u16,
-    pub physical_memory_handle: u16,
-    pub device_locator: String,
-    pub bank_locator: String,
-    pub size_bytes: Option<u64>,
-    pub memory_type: String,
-    pub form_factor: String,
-    pub speed_mt_s: Option<u32>,
-    pub configured_speed_mt_s: Option<u32>,
-    pub manufacturer: Option<String>,
-    pub serial: Option<String>,
-    pub part_number: Option<String>,
 }
 
 pub fn decode_dmi() -> io::Result<DmiDecodedData> {
@@ -256,37 +259,37 @@ fn parse_memory_structures(
     for structure in entry_point.structures(dmi_table) {
         match structure? {
             Structure::PhysicalMemoryArray(array) => {
-                arrays.push(DmiPhysicalMemoryArrayInfo {
-                    handle: array.handle,
-                    location: array.location.to_string(),
-                    usage: array.r#use.to_string(),
-                    error_correction: array.memory_error_correction.to_string(),
-                    max_capacity_bytes: array.extended_maximum_capacity.or_else(|| {
-                        array
-                            .maximum_capacity
-                            .map(|capacity_kib| capacity_kib as u64 * 1024)
-                    }),
-                    device_slots: array.number_of_memory_devices,
-                });
+                arrays.push(array);
             }
             Structure::MemoryDevice(device) => {
-                devices.push(DmiMemoryDeviceInfo {
-                    handle: device.handle,
-                    physical_memory_handle: device.physical_memory_handle,
-                    device_locator: device.device_locator.to_string(),
-                    bank_locator: device.bank_locator.to_string(),
-                    size_bytes: memory_device_size_bytes(&device),
-                    memory_type: format!("{:?}", device.memory_type),
-                    form_factor: format!("{:?}", device.form_factor),
-                    speed_mt_s: device
-                        .extended_speed
-                        .or_else(|| device.speed.map(u32::from)),
-                    configured_speed_mt_s: device
-                        .extended_configured_memory_speed
-                        .or_else(|| device.configured_memory_speed.map(u32::from)),
-                    manufacturer: non_empty(device.manufacturer),
-                    serial: non_empty(device.serial),
-                    part_number: non_empty(device.part_number),
+                if device.memory_type == dmidecode::memory_device::Type::Unknown {
+                    continue;
+                }
+                let ecc = if let Some(total) = device.total_width {
+                    device.data_width.unwrap_or_default() == total
+                } else {false};
+                let size = if let Some(size) = device.size {
+                    if size == 0x7FFF {
+                        device.extended_size as u64 * 1024 * 1024
+                    } else {
+                        size as u64 * 1024 * 1024
+                    }
+                } else { 0 };
+                devices.push(MemoryDeviceStatic {
+                    total_width: device.total_width.unwrap_or_default(),
+                    ecc: ecc,
+                    size: size,
+                    memory_type: device.memory_type,
+                    max_speed: device.speed.unwrap_or_default(),
+                    manufacturer: String::from(device.manufacturer),
+                    bank_locator: String::from(device.bank_locator),
+                    serial_number: String::from(device.serial),
+                    part_number: String::from(device.part_number),
+                    configured_speed: device.configured_memory_speed.unwrap_or_default(),
+                    min_voltage: device.minimum_voltage.unwrap_or_default(),
+                    max_voltage: device.maximum_voltage.unwrap_or_default(),
+                    configured_voltage: device.configured_voltage.unwrap_or_default(),
+                    trchnology: device.memory_technology.unwrap_or_default(),
                 });
             }
             _ => {}
@@ -304,33 +307,6 @@ fn dmi_decode_candidates(decoded: &DmiDecodedData) -> Vec<&[u8]> {
     }
     candidates.push(decoded.dmi_table.as_slice());
     candidates
-}
-
-fn memory_device_size_bytes(memory_device: &MemoryDevice<'_>) -> Option<u64> {
-    let size = memory_device.size?;
-    if size == 0 {
-        return None;
-    }
-
-    if size == 0x7fff {
-        return (memory_device.extended_size != 0)
-            .then_some(memory_device.extended_size as u64 * 1024 * 1024);
-    }
-
-    if (size & 0x8000) != 0 {
-        return Some((u64::from(size & 0x7fff)) * 1024);
-    }
-
-    Some(u64::from(size) * 1024 * 1024)
-}
-
-fn non_empty(text: &str) -> Option<String> {
-    let trimmed = text.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
-    }
 }
 
 fn invalid_dmi_data(error: impl std::fmt::Display) -> io::Error {

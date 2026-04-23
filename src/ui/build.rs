@@ -43,9 +43,9 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             let memory = extract_memory_structures(dmi).unwrap();
             text += &format!(
                 "机器最大上载内存：{}\n",
-                byte_to_string(memory.arrays[0].max_capacity_bytes.unwrap_or(0))
+                byte_to_string(memory.arrays[0].maximum_capacity.unwrap_or_default() as u64)
             );
-            text += &format!("物理插槽数：{}\n", memory.arrays[0].device_slots);
+            text += &format!("物理插槽数：{}\n", memory.arrays[0].number_of_memory_devices);
         } else {
             text += "以root权限启动以查看内存信息";
         }
@@ -54,7 +54,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             .block(normal_block("product"))
             .render(motherboard, buf);
     }
-    let [cpu1, cpu2] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(cpu);
+    let [cpu1, cpu2] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(cpu);
 
     let mut cpu_text = String::new();
     let mut cpu_text_2 = String::new();
@@ -92,12 +92,11 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     let mut mem_text = String::new();
     if let Ok(dmi) = &dmi {
         let memory = extract_memory_structures(dmi).unwrap();
-        let i = 1;
+        let mut i = 0;
         memory.devices.iter().for_each(|x| {
-            if x.memory_type != "Unknown" {
-                mem_text += &format!("slot{i}: \n   内存类型: {}\n   内存大小: {}\n   内存型号: {:?}\n   内存制造商: {:?}\n   内存速度: {}\n   内存配置速度: {}"
-                , x.memory_type, byte_to_string(x.size_bytes.unwrap_or(0)), x.part_number, x.manufacturer, x.speed_mt_s.unwrap_or_default(), x.configured_speed_mt_s.unwrap_or_default() );
-            }
+                mem_text += &format!("slot{i}: \n   内存类型: {:?}\n   内存大小: {}\n   内存型号: {}\n   内存技术: {:?}\n   内存制造商: {}\n   内存速度: {}MT/s\n   内存配置速度: {}MT/s\n   内存最小电压: {}mV\n   内存最大电压: {}mV\n   内存配置电压: {}mV\n",
+                x.memory_type, byte_to_string(x.size as u64), x.part_number, x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
+                i += 1;
         });
     }
     Paragraph::new(mem_text)
