@@ -4,6 +4,7 @@ use std::{
 };
 
 use dmidecode::{EntryPoint, MalformedStructureError, Structure, Structures, memory_device::MemoryTechnology};
+use uuid::Uuid;
 
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
 const DMI_ENTRY_POINT_PATH: &str = "/sys/firmware/dmi/tables/smbios_entry_point";
@@ -35,6 +36,81 @@ impl DmiDecodedData {
     pub fn structures<'buffer>(&'buffer self) -> Structures<'buffer> {
         self.entry_point.structures(&self.dmi_table)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ModernDmiDecodedData {
+    pub system: ModernSystem,
+    pub memory: DmiMemoryInfo,
+}
+
+impl ModernDmiDecodedData {
+    pub fn from_dmidecoded(decoded: &DmiDecodedData) -> Result<Self, MalformedStructureError> {
+        let mut system = ModernSystem::default();
+        let mut devices = Vec::new();
+        let mut max_capacity = 0;
+        let mut max_slots = 0;
+        for structure in decoded.structures() {
+            match structure? {
+                Structure::System(_system) => {
+                    system = ModernSystem {
+                        manufacturer: String::from(_system.manufacturer),
+                        product_name: String::from(_system.product),
+                        serial_number: String::from(_system.serial),
+                        uuid: _system.uuid.unwrap_or_default(),
+                        family: String::from(_system.family.unwrap_or_default()),
+                    };
+                }
+                Structure::PhysicalMemoryArray(array) => {
+                    max_capacity = array.maximum_capacity.unwrap_or_default() as u64 * 1024;
+                    max_slots = array.number_of_memory_devices;
+                }
+                Structure::MemoryDevice(device) => {
+                    if device.memory_type == dmidecode::memory_device::Type::Unknown {
+                        continue;
+                    }
+                    let ecc = if let Some(total) = device.total_width {
+                        device.data_width.unwrap_or_default() == total
+                    } else {false};
+                    let size = if let Some(size) = device.size {
+                        if size == 0x7FFF {
+                            device.extended_size as u64 * 1024 * 1024
+                        } else {
+                            size as u64 * 1024 * 1024
+                        }
+                    } else { 0 };
+                    devices.push(MemoryDeviceStatic {
+                        total_width: device.total_width.unwrap_or_default(),
+                        ecc: ecc,
+                        size: size,
+                        memory_type: device.memory_type,
+                        max_speed: device.speed.unwrap_or_default(),
+                        manufacturer: String::from(device.manufacturer),
+                        bank_locator: String::from(device.bank_locator),
+                        serial_number: String::from(device.serial),
+                        part_number: String::from(device.part_number),
+                        configured_speed: device.configured_memory_speed.unwrap_or_default(),
+                        min_voltage: device.minimum_voltage.unwrap_or_default(),
+                        max_voltage: device.maximum_voltage.unwrap_or_default(),
+                        configured_voltage: device.configured_voltage.unwrap_or_default(),
+                        trchnology: device.memory_technology.unwrap_or_default(),
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        Ok(ModernDmiDecodedData { system, memory: DmiMemoryInfo { max_capacity, max_slots, devices } })
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ModernSystem {
+    pub manufacturer: String,
+    pub product_name: String,
+    pub serial_number: String,
+    pub uuid: Uuid,
+    pub family: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -97,13 +173,6 @@ pub fn decode_dmi() -> io::Result<DmiDecodedData> {
         entry_point,
         dmi_table,
     })
-}
-
-pub fn extract_memory_structures(decoded: &DmiDecodedData) -> Result<DmiMemoryInfo, MalformedStructureError> {
-    match parse_memory_structures(&decoded) {
-        Ok(memory_info) => return Ok(memory_info),
-        Err(err) => return Err(err),
-    }
 }
 
 pub fn get_pci_devices() -> io::Result<Vec<PciGpuDevice>> {
@@ -258,56 +327,6 @@ fn split_id_and_name(line: &str) -> Option<(&str, &str)> {
     let split_at = line.find(char::is_whitespace)?;
     let (id, rest) = line.split_at(split_at);
     Some((id, rest.trim()))
-}
-
-fn parse_memory_structures(
-    decoded: &DmiDecodedData,
-) -> Result<DmiMemoryInfo, dmidecode::MalformedStructureError> {
-    let mut devices = Vec::new();
-    let mut max_capacity = 0;
-    let mut max_slots = 0;
-    for structure in decoded.structures() {
-        match structure? {
-            Structure::PhysicalMemoryArray(array) => {
-                max_capacity = array.maximum_capacity.unwrap_or_default() as u64 * 1024;
-                max_slots = array.number_of_memory_devices;
-            }
-            Structure::MemoryDevice(device) => {
-                if device.memory_type == dmidecode::memory_device::Type::Unknown {
-                    continue;
-                }
-                let ecc = if let Some(total) = device.total_width {
-                    device.data_width.unwrap_or_default() == total
-                } else {false};
-                let size = if let Some(size) = device.size {
-                    if size == 0x7FFF {
-                        device.extended_size as u64 * 1024 * 1024
-                    } else {
-                        size as u64 * 1024 * 1024
-                    }
-                } else { 0 };
-                devices.push(MemoryDeviceStatic {
-                    total_width: device.total_width.unwrap_or_default(),
-                    ecc: ecc,
-                    size: size,
-                    memory_type: device.memory_type,
-                    max_speed: device.speed.unwrap_or_default(),
-                    manufacturer: String::from(device.manufacturer),
-                    bank_locator: String::from(device.bank_locator),
-                    serial_number: String::from(device.serial),
-                    part_number: String::from(device.part_number),
-                    configured_speed: device.configured_memory_speed.unwrap_or_default(),
-                    min_voltage: device.minimum_voltage.unwrap_or_default(),
-                    max_voltage: device.maximum_voltage.unwrap_or_default(),
-                    configured_voltage: device.configured_voltage.unwrap_or_default(),
-                    trchnology: device.memory_technology.unwrap_or_default(),
-                });
-            }
-            _ => {}
-        }
-    }
-
-    Ok(DmiMemoryInfo { max_capacity, max_slots, devices })
 }
 
 fn invalid_dmi_data(error: impl std::fmt::Display) -> io::Error {

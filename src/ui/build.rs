@@ -15,8 +15,8 @@ use sysinfo::Motherboard;
 
 use crate::{
     App,
-    client::system::{byte_to_string, sec_to_time},
-    sys::{decode_dmi, extract_memory_structures},
+    client::system::{byte_to_string, command_runs, sec_to_time},
+    sys::{ModernDmiDecodedData, decode_dmi},
     ui::layout::{info_layout, main_layout, trend_layout},
 };
 
@@ -30,24 +30,43 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     Paragraph::new("hello? xiaxiaobai")
         .block(normal_block(""))
         .render(hello, buf);
+    let modern_dmi = if let Ok(dmi) = &dmi {
+        if let Ok(modern_dmi) = ModernDmiDecodedData::from_dmidecoded(dmi) {
+            Some(modern_dmi)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     if let Some(mother) = Motherboard::new() {
         let mut text = format!(
-            "name: {:?} {:?}\ncpu name: {}\ncpu logic number: {}\n",
-            mother.vendor_name(),
-            mother.name(),
+            "name: {}{}\ncpu name: {}\ncpu logic number: {}\n",
+            mother.vendor_name().unwrap_or_default(),
+            mother.name().unwrap_or_default(),
             cpubrand,
             app.sys.cpus().len()
         );
 
-        if let Ok(dmi) = dmi.as_ref().inspect_err(|e| text += &e.to_string()) {
-            let memory = extract_memory_structures(dmi).unwrap();
+        if let Some(dmi) = modern_dmi.as_ref() {
+            if let Ok(c) = command_runs(&[&["lscpu"], &["grep", "^L"]]) {
+                text += &c.replace(" ", "");
+            };
+            text += &format!(
+                "主板制造商: {}\n主板型号: {}\n主板uuid: {}\n主板序列号: {}\n",
+                dmi.system.manufacturer,
+                dmi.system.product_name,
+                dmi.system.uuid,
+                dmi.system.serial_number
+            );
             text += &format!(
                 "机器最大上载内存：{}\n",
-                byte_to_string(memory.max_capacity)
+                byte_to_string(dmi.memory.max_capacity)
             );
-            text += &format!("物理插槽数：{}\n", memory.max_slots);
+            text += &format!("物理插槽数：{}\n", dmi.memory.max_slots);
         } else {
-            text += "以root权限启动以查看内存信息";
+            text += "以root权限启动以查看更多信息";
         }
         Paragraph::new(text)
             .wrap(Wrap { trim: true })
@@ -90,8 +109,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .render(cpu2, buf);
 
     let mut mem_text = String::new();
-    if let Ok(dmi) = &dmi {
-        let memory = extract_memory_structures(dmi).unwrap();
+    if let Some(memory) = modern_dmi.map(|dmi| dmi.memory) {
         let mut i = 0;
         memory.devices.iter().for_each(|x| {
                 mem_text += &format!("slot{i}: \n   内存类型: {:?}\n   内存大小: {}\n   内存型号: {}\n   内存技术: {:?}\n   内存制造商: {}\n   内存速度: {}MT/s\n   内存配置速度: {}MT/s\n   内存最小电压: {}mV\n   内存最大电压: {}mV\n   内存配置电压: {}mV\n",
