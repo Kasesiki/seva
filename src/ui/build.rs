@@ -59,19 +59,20 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         if let Some(dmi) = modern_dmi.as_ref() {
 
             text = format!(
-                "主板制造商: {}\n主板型号: {}\n主板uuid: {}\n主板序列号: {}\ncpu name: {}\ncpu逻辑核数: {}\n",
+                "system manufacturer: {}\nproduct name: {}\nsystem uuid: {}\nserial number: {}\nsystem family: {}\ncpu name: {}\ncpu logic number: {}\n",
                 dmi.system.manufacturer,
                 dmi.system.product_name,
                 dmi.system.uuid,
                 dmi.system.serial_number,
+                dmi.system.family,
                 cpubrand,
                 app.sys.cpus().len(),
             );
             text += &format!(
-                "机器最大上载内存：{}\n",
+                "system max memory: {}\n",
                 byte_to_string(dmi.memory.max_capacity)
             );
-            text += &format!("物理插槽数：{}\n", dmi.memory.max_slots);
+            text += &format!("physical memory slot count: {}\n", dmi.memory.max_slots);
         } else {
             text += "以root权限启动以查看更多信息";
         }
