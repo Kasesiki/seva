@@ -40,6 +40,8 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         None
     };
 
+    let [product, cache_rect] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(motherboard);
+
     if let Some(mother) = Motherboard::new() {
         let mut text = format!(
             "name: {}{}\ncpu name: {}\ncpu logic number: {}\n",
@@ -48,17 +50,22 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             cpubrand,
             app.sys.cpus().len()
         );
-
+        let cache;
+        if let Ok(c) = command_runs(&[&["lscpu"], &["grep", "^L"]]) {
+            cache = c.replace(" ", "");
+        } else {
+            cache = String::from("以root权限启动以查看缓存信息");
+        }
         if let Some(dmi) = modern_dmi.as_ref() {
-            if let Ok(c) = command_runs(&[&["lscpu"], &["grep", "^L"]]) {
-                text += &c.replace(" ", "");
-            };
-            text += &format!(
-                "主板制造商: {}\n主板型号: {}\n主板uuid: {}\n主板序列号: {}\n",
+
+            text = format!(
+                "主板制造商: {}\n主板型号: {}\n主板uuid: {}\n主板序列号: {}\ncpu name: {}\ncpu逻辑核数: {}\n",
                 dmi.system.manufacturer,
                 dmi.system.product_name,
                 dmi.system.uuid,
-                dmi.system.serial_number
+                dmi.system.serial_number,
+                cpubrand,
+                app.sys.cpus().len(),
             );
             text += &format!(
                 "机器最大上载内存：{}\n",
@@ -71,7 +78,11 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         Paragraph::new(text)
             .wrap(Wrap { trim: true })
             .block(normal_block("product"))
-            .render(motherboard, buf);
+            .render(product, buf);
+        Paragraph::new(cache)
+            .wrap(Wrap { trim: true })
+            .block(normal_block("cache"))
+            .render(cache_rect, buf);
     }
     let [cpu1, cpu2] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(cpu);
 
@@ -102,10 +113,10 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         }
     }
     Paragraph::new(cpu_text)
-        .block(normal_block("cpu"))
+        .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
         .render(cpu1, buf);
     Paragraph::new(cpu_text_2)
-        .block(normal_block("cpu"))
+        .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
         .render(cpu2, buf);
 
     let mut mem_text = String::new();
@@ -116,6 +127,8 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 x.memory_type, byte_to_string(x.size as u64), x.part_number, x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
                 i += 1;
         });
+    } else {
+        mem_text = String::from("以root权限启动以查看内存信息");
     }
     Paragraph::new(mem_text)
         .block(normal_block("mem"))
