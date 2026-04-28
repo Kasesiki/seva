@@ -30,17 +30,15 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     Paragraph::new("hello? xiaxiaobai")
         .block(normal_block(""))
         .render(hello, buf);
-    let modern_dmi = if let Ok(dmi) = &dmi {
-        if let Ok(modern_dmi) = ModernDmiDecodedData::from_dmidecoded(dmi) {
-            Some(modern_dmi)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let dmi = dmi.map(|dmi| ModernDmiDecodedData::from_dmidecoded(&dmi).unwrap());
+    // let modern_dmi = if let Ok(dmi) = &dmi {
+    //     ModernDmiDecodedData::from_dmidecoded(dmi).ok()
+    // } else {
+    //     None
+    // };
 
-    let [product, cache_rect] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(motherboard);
+    let [product, cache_rect] =
+        Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(motherboard);
 
     if let Some(mother) = Motherboard::new() {
         let mut text = format!(
@@ -56,8 +54,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         } else {
             cache = String::from("以root权限启动以查看缓存信息");
         }
-        if let Some(dmi) = modern_dmi.as_ref() {
-
+        if let Ok(dmi) = dmi.as_ref() {
             text = format!(
                 "system manufacturer: {}\nproduct name: {}\nsystem uuid: {}\nserial number: {}\nsystem family: {}\ncpu name: {}\ncpu logic number: {}\n",
                 dmi.system.manufacturer,
@@ -121,11 +118,11 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .render(cpu2, buf);
 
     let mut mem_text = String::new();
-    if let Some(memory) = modern_dmi.map(|dmi| dmi.memory) {
+    if let Ok(memory) = dmi.map(|dmi| dmi.memory) {
         let mut i = 0;
         memory.devices.iter().for_each(|x| {
                 mem_text += &format!("slot{i}: \n   内存类型: {:?}\n   内存大小: {}\n   内存型号: {}\n   内存技术: {:?}\n   内存制造商: {}\n   内存速度: {}MT/s\n   内存配置速度: {}MT/s\n   内存最小电压: {}mV\n   内存最大电压: {}mV\n   内存配置电压: {}mV\n",
-                x.memory_type, byte_to_string(x.size as u64), x.part_number, x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
+                x.memory_type, byte_to_string(x.size), x.part_number, x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
                 i += 1;
         });
     } else {

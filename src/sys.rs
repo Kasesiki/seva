@@ -3,7 +3,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use dmidecode::{EntryPoint, MalformedStructureError, Structure, Structures, memory_device::MemoryTechnology};
+use dmidecode::{
+    EntryPoint, MalformedStructureError, Structure, Structures, memory_device::MemoryTechnology,
+};
 use uuid::Uuid;
 
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
@@ -71,18 +73,22 @@ impl ModernDmiDecodedData {
                     }
                     let ecc = if let Some(total) = device.total_width {
                         device.data_width.unwrap_or_default() == total
-                    } else {false};
+                    } else {
+                        false
+                    };
                     let size = if let Some(size) = device.size {
                         if size == 0x7FFF {
                             device.extended_size as u64 * 1024 * 1024
                         } else {
                             size as u64 * 1024 * 1024
                         }
-                    } else { 0 };
+                    } else {
+                        0
+                    };
                     devices.push(MemoryDeviceStatic {
                         total_width: device.total_width.unwrap_or_default(),
-                        ecc: ecc,
-                        size: size,
+                        ecc,
+                        size,
                         memory_type: device.memory_type,
                         max_speed: device.speed.unwrap_or_default(),
                         manufacturer: String::from(device.manufacturer),
@@ -100,7 +106,14 @@ impl ModernDmiDecodedData {
             }
         }
 
-        Ok(ModernDmiDecodedData { system, memory: DmiMemoryInfo { max_capacity, max_slots, devices } })
+        Ok(ModernDmiDecodedData {
+            system,
+            memory: DmiMemoryInfo {
+                max_capacity,
+                max_slots,
+                devices,
+            },
+        })
     }
 }
 
@@ -145,7 +158,6 @@ pub struct MemoryDeviceStatic {
     pub max_voltage: u16,
     pub configured_voltage: u16,
     pub trchnology: MemoryTechnology,
-
 }
 
 #[derive(Debug, Clone)]
