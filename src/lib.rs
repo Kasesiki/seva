@@ -13,13 +13,16 @@ use sysinfo::{
     Disks, Motherboard, Networks, Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System,
 };
 
-use crate::{client::stream::ClientState, sys::get_gpu};
 use crate::{
     client::{
         server::{self, Serve},
-        system::{Config, SystemLine, byte_to_string, command_runs, from_osstring, sec_to_time},
+        system::{Config, SystemLine, command_runs, from_osstring, sec_to_time},
     },
     ui::build::{Tui, normal_block, set_alert},
+};
+use crate::{
+    client::{stream::ClientState, system::HumanBytes},
+    sys::get_gpu,
 };
 
 pub mod client;
@@ -209,13 +212,13 @@ impl App {
                 return acc;
             }
             acc + &format!(
-                "Disk Name: {:?}\n   file system: {:?}\n   used/total: {}/ {}\n   write/read: {}/ {}\n\n",
+                "Disk Name: {:?}\n   file system: {:?}\n   used/total: {:.2}/ {:.2}\n   write/read: {:.2}/ {:.2}\n\n",
                 disk.name(),
                 disk.file_system(),
-                byte_to_string(total_space - disk.available_space()),
-                byte_to_string(total_space),
-                byte_to_string(disk.usage().written_bytes),
-                byte_to_string(disk.usage().read_bytes)
+                HumanBytes(total_space - disk.available_space()),
+                HumanBytes(total_space),
+                HumanBytes(disk.usage().written_bytes),
+                HumanBytes(disk.usage().read_bytes)
             )
         });
     }

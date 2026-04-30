@@ -48,29 +48,23 @@ impl Default for SystemLine {
     }
 }
 
-pub fn byte_to_string(mut byte: u64) -> String {
-    let mut ider: u64 = 0;
-    let mems = ["b ", "kb ", "Mb ", "Gb ", "Tb ", "Pb ", "Eb ", "Zb "];
-    let mut disklevel = 0;
-    loop {
-        if byte >= 1024 {
-            ider = byte % 1024;
-            byte /= 1024;
-            disklevel += 1;
-        } else {
-            break;
+pub struct HumanBytes(pub u64);
+
+impl std::fmt::Display for HumanBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const UNITS: [&str; 7] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
+        let bytes = self.0 as f32;
+        let i = ((bytes.log2() / 10.0) as usize).min(UNITS.len() - 1);
+        let unit = UNITS[i];
+        let size = bytes / 1024_f32.powi(i as i32);
+
+        // Don't show a fractional number of bytes.
+        if i == 0 {
+            return write!(f, "{size}{unit}");
         }
+
+        f.pad(&format!("{size:.2}{unit}"))
     }
-    if disklevel == 0 {
-        return format!("{}{}", byte, mems[disklevel].trim());
-    }
-    format!(
-        "{}{}{}{}",
-        byte,
-        mems[disklevel],
-        ider,
-        mems[disklevel - 1].trim()
-    )
 }
 
 pub fn sec_to_time(mut sec: u64) -> String {

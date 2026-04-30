@@ -15,7 +15,7 @@ use sysinfo::Motherboard;
 
 use crate::{
     App,
-    client::system::{byte_to_string, command_runs, sec_to_time},
+    client::system::{HumanBytes, command_runs, sec_to_time},
     sys::{ModernDmiDecodedData, decode_dmi},
     ui::layout::{info_layout, main_layout, trend_layout},
 };
@@ -66,8 +66,8 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 app.sys.cpus().len(),
             );
             text += &format!(
-                "system max memory: {}\n",
-                byte_to_string(dmi.memory.max_capacity)
+                "system max memory: {:.2}\n",
+                HumanBytes(dmi.memory.max_capacity)
             );
             text += &format!("physical memory slot count: {}\n", dmi.memory.max_slots);
         } else {
@@ -121,8 +121,8 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     if let Ok(memory) = dmi.map(|dmi| dmi.memory) {
         let mut i = 0;
         memory.devices.iter().for_each(|x| {
-                mem_text += &format!("slot{i}: \n   内存类型: {:?}\n   内存大小: {}\n   内存型号: {}\n   内存技术: {:?}\n   内存制造商: {}\n   内存速度: {}MT/s\n   内存配置速度: {}MT/s\n   内存最小电压: {}mV\n   内存最大电压: {}mV\n   内存配置电压: {}mV\n",
-                x.memory_type, byte_to_string(x.size), x.part_number, x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
+                mem_text += &format!("slot{i}: \n   内存类型: {:?}\n   内存大小: {:.2}\n   内存型号: {}\n   内存技术: {:?}\n   内存制造商: {}\n   内存速度: {}MT/s\n   内存配置速度: {}MT/s\n   内存最小电压: {}mV\n   内存最大电压: {}mV\n   内存配置电压: {}mV\n",
+                x.memory_type, HumanBytes(x.size), x.part_number, x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
                 i += 1;
         });
     } else {
@@ -179,7 +179,7 @@ pub fn trend_ui(
             "{:<9}{:<12}{:<14}{:<17}{}",
             process.pid.as_u32(),
             format!("{:.2}%", process.cpu_usage),
-            byte_to_string(process.memory),
+            HumanBytes(process.memory),
             sec_to_time(process.run_time),
             process.cmd
         )
@@ -211,18 +211,18 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     app.formats.cpu_line.deref().render(cpu, buf);
 
     Paragraph::new(format!(
-        "{}/{} ",
-        byte_to_string(app.sys.used_memory()),
-        byte_to_string(app.sys.total_memory())
+        "{:.2}/{:.2} ",
+        HumanBytes(app.sys.used_memory()),
+        HumanBytes(app.sys.total_memory())
     ))
     .block(normal_block("memory").merge_borders(MergeStrategy::Exact))
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(memory, buf);
 
     Paragraph::new(format!(
-        "{}/{} ",
-        byte_to_string(app.sys.used_swap()),
-        byte_to_string(app.sys.total_swap())
+        "{:.2}/{:.2} ",
+        HumanBytes(app.sys.used_swap()),
+        HumanBytes(app.sys.total_swap())
     ))
     .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
     .alignment(ratatui::layout::HorizontalAlignment::Right)
@@ -241,10 +241,10 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     let mut items: Vec<String> = vec![];
     for (pid, item) in &app.network {
         items.push(format!(
-            "{}: {} (Down) / {} (Up)",
+            "{}: {:.2} (Down) / {:.2} (Up)",
             pid,
-            byte_to_string(item.total_received()),
-            byte_to_string(item.total_transmitted())
+            HumanBytes(item.total_received()),
+            HumanBytes(item.total_transmitted())
         ));
     }
 
@@ -267,7 +267,7 @@ pub fn long_process(app: &App) -> (Paragraph<'static>, List<'static>) {
             "{:<9}{:<12}{:<14}{:<17}{}",
             process.pid.as_u32(),
             format!("{:.2}%", process.cpu_usage),
-            byte_to_string(process.memory),
+            HumanBytes(process.memory),
             sec_to_time(process.run_time),
             process.cmd
         )
@@ -285,7 +285,7 @@ pub fn short_process(app: &App) -> (Paragraph<'static>, List<'static>) {
             x.pid.as_u32(),
             x.name,
             format!("{:.2}%", x.cpu_usage),
-            byte_to_string(x.memory),
+            HumanBytes(x.memory),
         )
     });
     (
