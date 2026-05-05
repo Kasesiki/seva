@@ -212,7 +212,7 @@ impl App {
                 return acc;
             }
             acc + &format!(
-                "Disk Name: {:?}\n   file system: {:?}\n   used/total: {:.2}/ {:.2}\n   write/read: {:.2}/ {:.2}\n\n",
+                "Disk Name: {:?}\n   file system: {:?}\n   used/total: {}/ {}\n   write/read: {}/ {}\n\n",
                 disk.name(),
                 disk.file_system(),
                 HumanBytes(total_space - disk.available_space()),

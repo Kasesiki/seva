@@ -211,7 +211,7 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     app.formats.cpu_line.deref().render(cpu, buf);
 
     Paragraph::new(format!(
-        "{:.2}/{:.2} ",
+        "{:<5}/{:<5} ",
         HumanBytes(app.sys.used_memory()),
         HumanBytes(app.sys.total_memory())
     ))
@@ -220,7 +220,7 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     .render(memory, buf);
 
     Paragraph::new(format!(
-        "{:.2}/{:.2} ",
+        "{:<5}/{:<5} ",
         HumanBytes(app.sys.used_swap()),
         HumanBytes(app.sys.total_swap())
     ))
@@ -228,7 +228,7 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(swap, buf);
 
-    Paragraph::new(format!("{}%", app.sys.global_cpu_usage()))
+    Paragraph::new(format!("{:.2}% ", app.sys.global_cpu_usage()))
         .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
         .alignment(ratatui::layout::HorizontalAlignment::Right)
         .render(cpu, buf);
@@ -241,7 +241,7 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     let mut items: Vec<String> = vec![];
     for (pid, item) in &app.network {
         items.push(format!(
-            "{}: {:.2} (Down) / {:.2} (Up)",
+            "{}: {:<5} (Down) / {:<5} (Up)",
             pid,
             HumanBytes(item.total_received()),
             HumanBytes(item.total_transmitted())

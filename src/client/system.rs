@@ -58,12 +58,13 @@ impl std::fmt::Display for HumanBytes {
         let unit = UNITS[i];
         let size = bytes / 1024_f32.powi(i as i32);
 
-        // Don't show a fractional number of bytes.
         if i == 0 {
             return write!(f, "{size}{unit}");
         }
 
-        f.pad(&format!("{size:.2}{unit}"))
+        // let s = format!("{:.2}{:<5}", size, unit);
+        // write!(f, "{s}")
+        f.pad(&format!("{:.2}{:}", size, unit))
     }
 }
 
