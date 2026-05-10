@@ -348,9 +348,9 @@ fn invalid_dmi_data(error: impl std::fmt::Display) -> io::Error {
 }
 
 pub struct Disk {
-    format_size: String,
-    derive_name: String,
-    disk_name: String,
+    pub format_size: String,
+    pub derive_name: String,
+    pub disk_name: String,
 }
 //lsblk -o TYPE,NAME,SIZE | grep disk | awk '{print $2, $3}'
 pub fn take_sys_disk() -> Vec<Disk> {
@@ -358,7 +358,7 @@ pub fn take_sys_disk() -> Vec<Disk> {
     command_runs(&[
         &["lsblk", "-o", "TYPE,NAME,SIZE"],
         &["grep", "disk"],
-        &["awk", "'{print $2, $3}'"],
+        &["awk", "{print $2, $3}"],
     ])
     .unwrap_or_default()
     .lines()
@@ -367,9 +367,11 @@ pub fn take_sys_disk() -> Vec<Disk> {
         result.push(Disk {
             format_size: String::from(v[1]),
             derive_name: String::from(v[0]),
-            disk_name: command_runs(&[&[&format!("cat /sys/class/block/{}/device/model", v[0])]])
-                .unwrap_or("Only Linux".to_string()),
+            disk_name: command_runs(&[&["cat", &format!("/sys/class/block/{}/device/model", v[0])]])
+                .map_err(|e| e.to_string())
+                .unwrap_or("Only linux can do".to_string()),
         });
     });
     result
 }
+    

@@ -31,12 +31,6 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .block(normal_block(""))
         .render(hello, buf);
     let dmi = dmi.map(|dmi| ModernDmiDecodedData::from_dmidecoded(&dmi).unwrap());
-    // let modern_dmi = if let Ok(dmi) = &dmi {
-    //     ModernDmiDecodedData::from_dmidecoded(dmi).ok()
-    // } else {
-    //     None
-    // };
-
     let [product, cache_rect] =
         Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(motherboard);
 
@@ -110,11 +104,16 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             cpu_text_2 += &format!("cpu{:>2}:  {:>5.2}%", i, cpu.cpu_usage());
         }
     }
-    Paragraph::new(cpu_text)
+    Paragraph::new(format!("{cpu_text}\n{cpu_text_2}"))
         .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
         .render(cpu1, buf);
-    Paragraph::new(cpu_text_2)
-        .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
+
+    let disk_test = app.disks.iter().fold(String::new(), |mut acc, f| {
+       acc += &format!("Disk: {}\n  name: {}  size: {}\n", f.derive_name, f.disk_name, f.format_size);
+       acc
+    });
+    Paragraph::new(disk_test)
+        .block(normal_block("disk").merge_borders(MergeStrategy::Exact))
         .render(cpu2, buf);
 
     let mut mem_text = String::new();
