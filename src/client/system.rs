@@ -62,8 +62,6 @@ impl std::fmt::Display for HumanBytes {
             return write!(f, "{size}{unit}");
         }
 
-        // let s = format!("{:.2}{:<5}", size, unit);
-        // write!(f, "{s}")
         f.pad(&format!("{:.2}{:}", size, unit))
     }
 }

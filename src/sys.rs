@@ -8,6 +8,8 @@ use dmidecode::{
 };
 use uuid::Uuid;
 
+use crate::client::system::command_runs;
+
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
 const DMI_ENTRY_POINT_PATH: &str = "/sys/firmware/dmi/tables/smbios_entry_point";
 const DMI_TABLE_PATH: &str = "/sys/firmware/dmi/tables/DMI";
@@ -343,4 +345,31 @@ fn split_id_and_name(line: &str) -> Option<(&str, &str)> {
 
 fn invalid_dmi_data(error: impl std::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, error.to_string())
+}
+
+pub struct Disk {
+    format_size: String,
+    derive_name: String,
+    disk_name: String,
+}
+//lsblk -o TYPE,NAME,SIZE | grep disk | awk '{print $2, $3}'
+pub fn take_sys_disk() -> Vec<Disk> {
+    let mut result = vec![];
+    command_runs(&[
+        &["lsblk", "-o", "TYPE,NAME,SIZE"],
+        &["grep", "disk"],
+        &["awk", "'{print $2, $3}'"],
+    ])
+    .unwrap_or_default()
+    .lines()
+    .for_each(|f| {
+        let v: Vec<&str> = f.split(" ").collect();
+        result.push(Disk {
+            format_size: String::from(v[1]),
+            derive_name: String::from(v[0]),
+            disk_name: command_runs(&[&[&format!("cat /sys/class/block/{}/device/model", v[0])]])
+                .unwrap_or("Only Linux".to_string()),
+        });
+    });
+    result
 }
