@@ -50,10 +50,8 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         }
         if let Ok(dmi) = dmi.as_ref() {
             text = format!(
-                "system manufacturer: {}\nproduct name: {}\nsystem uuid: {}\nserial number: {}\nsystem family: {}\ncpu name: {}\ncpu logic number: {}\n",
-                dmi.system.manufacturer,
+                "product name: {}\nserial number: {}\nsystem family: {}\ncpu name: {}\ncpu logic number: {}\n",
                 dmi.system.product_name,
-                dmi.system.uuid,
                 dmi.system.serial_number,
                 dmi.system.family,
                 cpubrand,
@@ -109,7 +107,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .render(cpu1, buf);
 
     let disk_test = app.disks.iter().fold(String::new(), |mut acc, f| {
-       acc += &format!("Disk: {}\n  name: {}  size: {}\n", f.derive_name, f.disk_name, f.format_size);
+       acc += &format!("/dev/{}:\n  name: {}  size: {}\n", f.derive_name, f.disk_name, f.format_size);
        acc
     });
     Paragraph::new(disk_test)
@@ -120,9 +118,9 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     if let Ok(memory) = dmi.map(|dmi| dmi.memory) {
         let mut i = 0;
         memory.devices.iter().for_each(|x| {
-                mem_text += &format!("slot{i}: \n   内存类型: {:?}\n   内存大小: {:.2}\n   内存型号: {}\n   内存技术: {:?}\n   内存制造商: {}\n   内存速度: {}MT/s\n   内存配置速度: {}MT/s\n   内存最小电压: {}mV\n   内存最大电压: {}mV\n   内存配置电压: {}mV\n",
-                x.memory_type, HumanBytes(x.size), x.part_number, x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
-                i += 1;
+            mem_text += &format!("slot{i}: \n  内存类型: {:?}\n  内存大小: {:.2}\n  内存型号: {}\n  内存技术: {:?}\n  内存制造商: {}\n  内存速度: {}MT/s\n  内存配置速度: {}MT/s\n  内存最小电压: {}mV\n  内存最大电压: {}mV\n  内存配置电压: {}mV\n",
+            x.memory_type, HumanBytes(x.size), x.part_number, x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
+            i += 1;
         });
     } else {
         mem_text = String::from("以root权限启动以查看内存信息");
