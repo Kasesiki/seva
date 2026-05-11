@@ -375,8 +375,8 @@ pub fn take_sys_disk() -> Vec<Disk> {
             disk_name: command_runs(&[&["cat", &format!("/sys/class/block/{}/device/model", v[0])]]).ok(),
             bus_id: bus.to_string(),
             ssd: v[2] == "0",
-            format_pcie: command_runs(&[&["lspci", "-s", bus.trim(), "-vvv"], &["grep", "-E", "LnkSta:"], &["awk", "-F':'", "{print $2}"]])
-            .map(|e| e.trim().to_string()).ok(),
+            format_pcie: command_runs(&[&["lspci", "-s", bus.trim(), "-vvv"], &["grep", "-E", "LnkSta:"]])
+            .map(|e| e.trim().split(":").last().unwrap_or_default().to_string()).ok(),
         });
     });
     result

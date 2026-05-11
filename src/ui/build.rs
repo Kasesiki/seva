@@ -23,7 +23,7 @@ use crate::{
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
 
 pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-    let (hello, motherboard, cpu, memory) = info_layout(area, buf);
+    let (hello, product, cache_rect, cpu, disk, memory) = info_layout(area, buf);
 
     let cpubrand = app.sys.cpus()[0].brand();
     let dmi = decode_dmi();
@@ -31,8 +31,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .block(normal_block(""))
         .render(hello, buf);
     let dmi = dmi.map(|dmi| ModernDmiDecodedData::from_dmidecoded(&dmi).unwrap());
-    let [product, cache_rect] =
-        Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(motherboard);
+    
 
     if let Some(mother) = Motherboard::new() {
         let mut text = format!(
@@ -74,7 +73,6 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             .block(normal_block("cache"))
             .render(cache_rect, buf);
     }
-    let [cpu1, cpu2] = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(cpu);
 
     let mut cpu_text = String::new();
     let mut cpu_text_2 = String::new();
@@ -104,22 +102,22 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     }
     Paragraph::new(format!("{cpu_text}\n{cpu_text_2}"))
         .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
-        .render(cpu1, buf);
+        .render(cpu, buf);
 
     let disk_test = app.disks.iter().fold(String::new(), |mut acc, f| {
         
         if let Some(name) = &f.disk_name {
-            acc += &format!("/dev/{}({})\n name: {} size: {}\n", f.derive_name, f.bus_id, name, f.format_size);
+            acc += &format!("{}({}) {}", name.trim(), if f.ssd {"SSD"} else {"HDD"}, f.format_size);
             if let Some(speed) = &f.format_pcie {
                 if !speed.is_empty() {
-                    acc += &(speed.clone() + "\n")
+                    acc += &format!(" {}\n", speed);
                 } else {
                     acc += "使用root查看更多内容\n"
                 } 
             }
             acc
         } else {
-            acc += &format!("/dev/{}\n size: {}\n", f.derive_name, f.format_size);
+            acc += &format!("/dev/{} size: {}\n", f.derive_name, f.format_size);
             acc
         }
        
@@ -127,7 +125,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     });
     Paragraph::new(disk_test)
         .block(normal_block("disk").merge_borders(MergeStrategy::Exact))
-        .render(cpu2, buf);
+        .render(disk, buf);
 
     let mut mem_text = String::new();
     if let Ok(memory) = dmi.map(|dmi| dmi.memory) {
