@@ -107,8 +107,23 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .render(cpu1, buf);
 
     let disk_test = app.disks.iter().fold(String::new(), |mut acc, f| {
-       acc += &format!("/dev/{}:\n  name: {}  size: {}\n", f.derive_name, f.disk_name, f.format_size);
-       acc
+        
+        if let Some(name) = &f.disk_name {
+            acc += &format!("/dev/{}({})\n name: {} size: {}\n", f.derive_name, f.bus_id, name, f.format_size);
+            if let Some(speed) = &f.format_pcie {
+                if !speed.is_empty() {
+                    acc += &(speed.clone() + "\n")
+                } else {
+                    acc += "使用root查看更多内容\n"
+                } 
+            }
+            acc
+        } else {
+            acc += &format!("/dev/{}\n size: {}\n", f.derive_name, f.format_size);
+            acc
+        }
+       
+       
     });
     Paragraph::new(disk_test)
         .block(normal_block("disk").merge_borders(MergeStrategy::Exact))

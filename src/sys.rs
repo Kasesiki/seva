@@ -350,26 +350,33 @@ fn invalid_dmi_data(error: impl std::fmt::Display) -> io::Error {
 pub struct Disk {
     pub format_size: String,
     pub derive_name: String,
-    pub disk_name: String,
+    pub disk_name: Option<String>,
+    pub bus_id: String,
+    pub ssd: bool,
+    pub format_pcie: Option<String>,
 }
 //lsblk -o TYPE,NAME,SIZE | grep disk | awk '{print $2, $3}'
 pub fn take_sys_disk() -> Vec<Disk> {
     let mut result = vec![];
     command_runs(&[
-        &["lsblk", "-o", "TYPE,NAME,SIZE"],
+        &["lsblk", "-o", "TYPE,NAME,SIZE,ROTA"],
         &["grep", "disk"],
-        &["awk", "{print $2, $3}"],
+        &["awk", "{print $2, $3, $4 $5 $6}"],
     ])
     .unwrap_or_default()
     .lines()
     .for_each(|f| {
         let v: Vec<&str> = f.split(" ").collect();
+        let bus = command_runs(&[&["readlink", &format!("/sys/class/block/nvme0n1")], &["grep", "-oP", "[0-9a-f]{2}:[0-9a-f]{2}\\.[0-9a-f]"]]).unwrap_or_default();
+        let bus = bus.lines().last().unwrap_or_default();
         result.push(Disk {
             format_size: String::from(v[1]),
             derive_name: String::from(v[0]),
-            disk_name: command_runs(&[&["cat", &format!("/sys/class/block/{}/device/model", v[0])]])
-                .map_err(|e| e.to_string())
-                .unwrap_or("Only linux can do".to_string()),
+            disk_name: command_runs(&[&["cat", &format!("/sys/class/block/{}/device/model", v[0])]]).ok(),
+            bus_id: bus.to_string(),
+            ssd: v[2] == "0",
+            format_pcie: command_runs(&[&["lspci", "-s", bus.trim(), "-vvv"], &["grep", "-E", "LnkSta:"], &["awk", "-F':'", "{print $2}"]])
+            .map(|e| e.trim().to_string()).ok(),
         });
     });
     result
