@@ -361,23 +361,26 @@ pub fn take_sys_disk() -> Vec<Disk> {
     command_runs(&[
         &["lsblk", "-o", "TYPE,NAME,SIZE,ROTA"],
         &["grep", "disk"],
-        &["awk", "{print $2, $3, $4 $5 $6}"],
+        &["awk", "{print $2, $3, $4}"],
     ])
     .unwrap_or_default()
     .lines()
-    .for_each(|f| {
+    .for_each(|f: &str| {
         let v: Vec<&str> = f.split(" ").collect();
-        let bus = command_runs(&[&["readlink", &format!("/sys/class/block/nvme0n1")], &["grep", "-oP", "[0-9a-f]{2}:[0-9a-f]{2}\\.[0-9a-f]"]]).unwrap_or_default();
-        let bus = bus.lines().last().unwrap_or_default();
-        result.push(Disk {
-            format_size: String::from(v[1]),
-            derive_name: String::from(v[0]),
-            disk_name: command_runs(&[&["cat", &format!("/sys/class/block/{}/device/model", v[0])]]).ok(),
-            bus_id: bus.to_string(),
-            ssd: v[2] == "0",
-            format_pcie: command_runs(&[&["lspci", "-s", bus.trim(), "-vvv"], &["grep", "-E", "LnkSta:"]])
-            .map(|e| e.trim().split(":").last().unwrap_or_default().to_string()).ok(),
-        });
+        if let Some(bus) = command_runs(&[&["readlink", &format!("/sys/class/block/{}", v[0])], &["grep", "-oP", "[0-9a-f]{2}:[0-9a-f]{2}\\.[0-9a-f]"]]).ok().and_then(|bus| bus.lines().last().map(|f| f.to_string())) {
+            if !bus.trim().is_empty() {
+                result.push(Disk {
+                    format_size: String::from(v[1]),
+                    derive_name: String::from(v[0]),
+                    disk_name: command_runs(&[&["cat", &format!("/sys/class/block/{}/device/model", v[0])]]).ok(),
+                    bus_id: bus.to_string(),
+                    ssd: v[2] == "0",
+                    format_pcie: command_runs(&[&["lspci", "-s", bus.trim(), "-vvv"], &["grep", "-E", "LnkSta:"]])
+                    .map(|e| e.trim().split(":").last().unwrap_or_default().to_string()).ok(),
+                });
+            }
+
+        };
     });
     result
 }
