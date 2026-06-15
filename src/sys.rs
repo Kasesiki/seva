@@ -7,7 +7,6 @@ use dmidecode::{
     EntryPoint, MalformedStructureError, Structure, Structures, memory_device::MemoryTechnology,
 };
 use libnvme::{NvmeVersion, SmartLog};
-use uuid::Uuid;
 
 use crate::client::system::{DiskBytes, command_runs};
 
@@ -61,9 +60,8 @@ impl ModernDmiDecodedData {
                     system = ModernSystem {
                         manufacturer: String::from(_system.manufacturer),
                         product_name: String::from(_system.product),
-                        serial_number: String::from(_system.serial),
-                        uuid: _system.uuid.unwrap_or_default(),
-                        family: String::from(_system.family.unwrap_or_default()),
+                        serial_number: _system.serial.to_string(),
+                        family: _system.family.map(|f| f.to_string()),
                     };
                 }
                 Structure::PhysicalMemoryArray(array) => {
@@ -125,8 +123,7 @@ pub struct ModernSystem {
     pub manufacturer: String,
     pub product_name: String,
     pub serial_number: String,
-    pub uuid: Uuid,
-    pub family: String,
+    pub family: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]

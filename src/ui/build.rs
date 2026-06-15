@@ -48,13 +48,15 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         }
         if let Ok(dmi) = dmi.as_ref() {
             text = format!(
-                "product name: {}\nserial number: {}\nsystem family: {}\ncpu name: {}\ncpu logic number: {}\n",
+                "product name: {}\nserial number: {}\ncpu name: {}\ncpu logic number: {}\n",
                 dmi.system.product_name,
                 dmi.system.serial_number,
-                dmi.system.family,
                 cpubrand,
                 app.sys.cpus().len(),
             );
+            if let Some(family) = &dmi.system.family {
+                text += &format!("system family: {}\n", family)
+            }
             text += &format!(
                 "system max memory: {}\n",
                 HumanBytes(dmi.memory.max_capacity)
