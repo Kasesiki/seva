@@ -116,10 +116,10 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                     acc += &format!(" {}", speed);
                 }
             }
-            if let Some(firmware) = &f.firmware_version {
+            if let Some(nvmespc) = &f.nvmespc && let Some(firmware_version) = &f.firmware_version {
                 acc += &format!(
                     "\n    NVME spc: {}, firmware version: {}",
-                    f.nvmespc, firmware
+                    nvmespc, firmware_version
                 );
             }
 

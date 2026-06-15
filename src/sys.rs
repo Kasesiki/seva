@@ -6,10 +6,10 @@ use std::{
 use dmidecode::{
     EntryPoint, MalformedStructureError, Structure, Structures, memory_device::MemoryTechnology,
 };
-use libnvme::NvmeVersion;
+use libnvme::{NvmeVersion, SmartLog};
 use uuid::Uuid;
 
-use crate::client::system::HumanBytes;
+use crate::client::system::{HumanBytes, command_runs};
 
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
 const DMI_ENTRY_POINT_PATH: &str = "/sys/firmware/dmi/tables/smbios_entry_point";
@@ -355,7 +355,8 @@ pub struct Disk {
     pub ssd: bool,
     pub firmware_version: Option<String>,
     pub format_pcie: Option<String>,
-    pub nvmespc: NvmeVersion,
+    pub nvmespc: Option<NvmeVersion>,
+    pub smartlog: Option<SmartLog>
 }
 //lsblk -o TYPE,NAME,SIZE | grep disk | awk '{print $2, $3}'
 pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
@@ -368,43 +369,21 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                 for ns in ctrl.namespaces() {
                     disk_size += ns.size_bytes();
                 }
-                let id = ctrl.identify()?;
+                let id = ctrl.identify();
+                println!("{:?} {:?}", ctrl.address(), ctrl.host_transport_address());
                 result.push(Disk {
                     format_size: HumanBytes(disk_size).to_string(),
                     firmware_version: ctrl.firmware().ok().map(|f| f.to_string()),
                     disk_name: ctrl.model().ok().map(|f| f.to_string()),
                     bus_id: String::new(),
                     ssd: true,
-                    format_pcie: None,
-                    nvmespc: id.nvme_version(),
+                    format_pcie: command_runs(&[&["lspci", "-s", ctrl.address().unwrap_or_default(), "-vvv"], &["grep", "-E", "LnkSta:"]])
+                        .map(|e| e.trim().split(":").last().unwrap_or_default().to_string()).ok(),
+                    nvmespc: id.ok().map(|f| f.nvme_version()),
+                    smartlog: ctrl.smart_log().ok(),
                 });
-                println!("{} {}", ctrl.name()?, ctrl.model()?);
             }
         }
     }
-    // command_runs(&[
-    //     &["lsblk", "-o", "TYPE,NAME,SIZE,ROTA"],
-    //     &["grep", "disk"],
-    //     &["awk", "{print $2, $3, $4}"],
-    // ])
-    // .unwrap_or_default()
-    // .lines()
-    // .for_each(|f: &str| {
-    //     let v: Vec<&str> = f.split(" ").collect();
-    //     if let Some(bus) = command_runs(&[&["readlink", &format!("/sys/class/block/{}", v[0])], &["grep", "-oP", "[0-9a-f]{2}:[0-9a-f]{2}\\.[0-9a-f]"]]).ok().and_then(|bus| bus.lines().last().map(|f| f.to_string())) {
-    //         if !bus.trim().is_empty() {
-    //             result.push(Disk {
-    //                 format_size: String::from(v[1]),
-    //                 derive_name: String::from(v[0]),
-    //                 disk_name: command_runs(&[&["cat", &format!("/sys/class/block/{}/device/model", v[0])]]).ok(),
-    //                 bus_id: bus.to_string(),
-    //                 ssd: v[2] == "0",
-    //                 format_pcie: command_runs(&[&["lspci", "-s", bus.trim(), "-vvv"], &["grep", "-E", "LnkSta:"]])
-    //                 .map(|e| e.trim().split(":").last().unwrap_or_default().to_string()).ok(),
-    //             });
-    //         }
-
-    //     };
-    // });
     Ok(result)
 }
