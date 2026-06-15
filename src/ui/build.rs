@@ -56,7 +56,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 app.sys.cpus().len(),
             );
             text += &format!(
-                "system max memory: {:.2}\n",
+                "system max memory: {}\n",
                 HumanBytes(dmi.memory.max_capacity)
             );
             text += &format!("physical memory slot count: {}\n", dmi.memory.max_slots);
@@ -123,8 +123,9 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 );
             }
             if let Some(smartlog) = &f.smartlog {
+                acc += &format!(", media error: {}", smartlog.media_errors());
                 acc += &format!(
-                    "\n    temperature: {}℃, Percentage Used: {}% unit read/write: {}/{}",
+                    "\n    temperature: {} C, Percentage Used: {}%, unit read/written: {}/{}",
                     smartlog.temperature_celsius(), smartlog.percentage_used(), DiskBytes(smartlog.data_units_read()*512*1000), DiskBytes(smartlog.data_units_written()*512*1000)
                 );
             }
@@ -141,7 +142,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     if let Ok(memory) = dmi.map(|dmi| dmi.memory) {
         let mut i = 0;
         memory.devices.iter().for_each(|x| {
-            mem_text += &format!("slot{i}: \n  内存类型: {:?}\n  内存大小: {:.2}\n  内存型号: {}\n  内存技术: {:?}\n  内存制造商: {}\n  内存速度: {}MT/s\n  内存配置速度: {}MT/s\n  内存最小电压: {}mV\n  内存最大电压: {}mV\n  内存配置电压: {}mV\n",
+            mem_text += &format!("slot{i}: \n  内存类型: {:?}\n  内存大小: {}\n  内存型号: {}\n  内存技术: {:?}\n  内存制造商: {}\n  内存速度: {}MT/s\n  内存配置速度: {}MT/s\n  内存最小电压: {}mV\n  内存最大电压: {}mV\n  内存配置电压: {}mV\n",
             x.memory_type, HumanBytes(x.size), x.part_number, x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
             i += 1;
         });
