@@ -17,7 +17,9 @@ use crate::{
     client::{
         server::{self, Serve},
         system::{Config, SystemLine, command_runs, from_osstring, sec_to_time},
-    }, sys::{Disk, take_sys_disk}, ui::build::{Tui, normal_block, set_alert}
+    },
+    sys::{Disk, take_sys_disk},
+    ui::build::{Tui, normal_block, set_alert},
 };
 use crate::{
     client::{stream::ClientState, system::HumanBytes},
@@ -57,7 +59,7 @@ impl App {
             service: Serve::new(config.services),
             network: Networks::new_with_refreshed_list(),
             formats: Format::new(),
-            disks: take_sys_disk(),
+            disks: take_sys_disk().unwrap(),
         }
         .once())
     }

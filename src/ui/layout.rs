@@ -47,7 +47,10 @@ pub fn trend_layout(area: Rect, _buf: &mut ratatui::prelude::Buffer) -> (Rect, R
     (trend, disk, process)
 }
 
-pub fn info_layout(area: Rect, _buf: &mut ratatui::prelude::Buffer) -> (Rect, Rect, Rect, Rect, Rect, Rect) {
+pub fn info_layout(
+    area: Rect,
+    _buf: &mut ratatui::prelude::Buffer,
+) -> (Rect, Rect, Rect, Rect, Rect, Rect) {
     let [hello, area] = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(area);
     let [hello, _] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(3)]).areas(hello);
     let [motherboard, cpu, memory] = Layout::horizontal([
@@ -57,20 +60,19 @@ pub fn info_layout(area: Rect, _buf: &mut ratatui::prelude::Buffer) -> (Rect, Re
     ])
     .areas(area.clone());
 
-    let [disk_space, _empty] = Layout::horizontal([
-        Constraint::Fill(2),
-        Constraint::Fill(1),
-    ])
-    .areas(area);
-    let [_empty, disk] =
-        Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)]).areas(disk_space);
-
+    let [disk_space, _empty] =
+        Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1)]).areas(area);
+    let [_empty, disk] = Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)])
+        .areas(disk_space);
 
     let [product_cache, _empty] =
-        Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)]).areas(motherboard);
+        Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)])
+            .areas(motherboard);
     let [product, cache] =
-        Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)]).areas(product_cache);
+        Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)])
+            .areas(product_cache);
 
-    let [cpu, _empty] = Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)]).areas(cpu);
+    let [cpu, _empty] =
+        Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)]).areas(cpu);
     (hello, product, cache, cpu, disk, memory)
 }

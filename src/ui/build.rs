@@ -31,7 +31,6 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .block(normal_block(""))
         .render(hello, buf);
     let dmi = dmi.map(|dmi| ModernDmiDecodedData::from_dmidecoded(&dmi).unwrap());
-    
 
     if let Some(mother) = Motherboard::new() {
         let mut text = format!(
@@ -105,23 +104,28 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .render(cpu, buf);
 
     let disk_test = app.disks.iter().fold(String::new(), |mut acc, f| {
-        
         if let Some(name) = &f.disk_name {
-            acc += &format!("{}({}) {}", name.trim(), if f.ssd {"SSD"} else {"HDD"}, f.format_size);
+            acc += &format!(
+                "{}({}) {}",
+                name.trim(),
+                if f.ssd { "SSD" } else { "HDD" },
+                f.format_size
+            );
             if let Some(speed) = &f.format_pcie {
                 if !speed.is_empty() {
-                    acc += &format!(" {}\n", speed);
-                } else {
-                    acc += "使用root查看更多内容\n"
-                } 
+                    acc += &format!(" {}", speed);
+                }
             }
-            acc
-        } else {
-            acc += &format!("/dev/{} size: {}\n", f.derive_name, f.format_size);
-            acc
+            if let Some(firmware) = &f.firmware_version {
+                acc += &format!(
+                    "\n    NVME spc: {}, firmware version: {}",
+                    f.nvmespc, firmware
+                );
+            }
+
+            acc += "\n"
         }
-       
-       
+        acc
     });
     Paragraph::new(disk_test)
         .block(normal_block("disk").merge_borders(MergeStrategy::Exact))

@@ -6,9 +6,10 @@ use std::{
 use dmidecode::{
     EntryPoint, MalformedStructureError, Structure, Structures, memory_device::MemoryTechnology,
 };
+use libnvme::NvmeVersion;
 use uuid::Uuid;
 
-use crate::client::system::command_runs;
+use crate::client::system::HumanBytes;
 
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
 const DMI_ENTRY_POINT_PATH: &str = "/sys/firmware/dmi/tables/smbios_entry_point";
@@ -349,39 +350,61 @@ fn invalid_dmi_data(error: impl std::fmt::Display) -> io::Error {
 
 pub struct Disk {
     pub format_size: String,
-    pub derive_name: String,
     pub disk_name: Option<String>,
     pub bus_id: String,
     pub ssd: bool,
+    pub firmware_version: Option<String>,
     pub format_pcie: Option<String>,
+    pub nvmespc: NvmeVersion,
 }
 //lsblk -o TYPE,NAME,SIZE | grep disk | awk '{print $2, $3}'
-pub fn take_sys_disk() -> Vec<Disk> {
+pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
     let mut result = vec![];
-    command_runs(&[
-        &["lsblk", "-o", "TYPE,NAME,SIZE,ROTA"],
-        &["grep", "disk"],
-        &["awk", "{print $2, $3, $4}"],
-    ])
-    .unwrap_or_default()
-    .lines()
-    .for_each(|f: &str| {
-        let v: Vec<&str> = f.split(" ").collect();
-        if let Some(bus) = command_runs(&[&["readlink", &format!("/sys/class/block/{}", v[0])], &["grep", "-oP", "[0-9a-f]{2}:[0-9a-f]{2}\\.[0-9a-f]"]]).ok().and_then(|bus| bus.lines().last().map(|f| f.to_string())) {
-            if !bus.trim().is_empty() {
+    let root = libnvme::Root::scan()?;
+    for host in root.hosts() {
+        for subsys in host.subsystems() {
+            for ctrl in subsys.controllers() {
+                let mut disk_size: u64 = 0;
+                for ns in ctrl.namespaces() {
+                    disk_size += ns.size_bytes();
+                }
+                let id = ctrl.identify()?;
                 result.push(Disk {
-                    format_size: String::from(v[1]),
-                    derive_name: String::from(v[0]),
-                    disk_name: command_runs(&[&["cat", &format!("/sys/class/block/{}/device/model", v[0])]]).ok(),
-                    bus_id: bus.to_string(),
-                    ssd: v[2] == "0",
-                    format_pcie: command_runs(&[&["lspci", "-s", bus.trim(), "-vvv"], &["grep", "-E", "LnkSta:"]])
-                    .map(|e| e.trim().split(":").last().unwrap_or_default().to_string()).ok(),
+                    format_size: HumanBytes(disk_size).to_string(),
+                    firmware_version: ctrl.firmware().ok().map(|f| f.to_string()),
+                    disk_name: ctrl.model().ok().map(|f| f.to_string()),
+                    bus_id: String::new(),
+                    ssd: true,
+                    format_pcie: None,
+                    nvmespc: id.nvme_version(),
                 });
+                println!("{} {}", ctrl.name()?, ctrl.model()?);
             }
+        }
+    }
+    // command_runs(&[
+    //     &["lsblk", "-o", "TYPE,NAME,SIZE,ROTA"],
+    //     &["grep", "disk"],
+    //     &["awk", "{print $2, $3, $4}"],
+    // ])
+    // .unwrap_or_default()
+    // .lines()
+    // .for_each(|f: &str| {
+    //     let v: Vec<&str> = f.split(" ").collect();
+    //     if let Some(bus) = command_runs(&[&["readlink", &format!("/sys/class/block/{}", v[0])], &["grep", "-oP", "[0-9a-f]{2}:[0-9a-f]{2}\\.[0-9a-f]"]]).ok().and_then(|bus| bus.lines().last().map(|f| f.to_string())) {
+    //         if !bus.trim().is_empty() {
+    //             result.push(Disk {
+    //                 format_size: String::from(v[1]),
+    //                 derive_name: String::from(v[0]),
+    //                 disk_name: command_runs(&[&["cat", &format!("/sys/class/block/{}/device/model", v[0])]]).ok(),
+    //                 bus_id: bus.to_string(),
+    //                 ssd: v[2] == "0",
+    //                 format_pcie: command_runs(&[&["lspci", "-s", bus.trim(), "-vvv"], &["grep", "-E", "LnkSta:"]])
+    //                 .map(|e| e.trim().split(":").last().unwrap_or_default().to_string()).ok(),
+    //             });
+    //         }
 
-        };
-    });
-    result
+    //     };
+    // });
+    Ok(result)
 }
-    
