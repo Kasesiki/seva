@@ -48,15 +48,16 @@ impl Default for SystemLine {
     }
 }
 
-pub struct HumanBytes(pub u64);
+pub struct HumanBytes<T: Copy + Into<u128>>(pub T);
 
-impl std::fmt::Display for HumanBytes {
+impl<T: Copy + Into<u128>> std::fmt::Display for HumanBytes<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const UNITS: [&str; 7] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
-        let bytes = self.0 as f32;
+        
+        let bytes = self.0.into() as f64;
         let i = ((bytes.log2() / 10.0) as usize).min(UNITS.len() - 1);
         let unit = UNITS[i];
-        let size = bytes / 1024_f32.powi(i as i32);
+        let size = bytes / 1024_f64.powi(i as i32);
 
         if i == 0 {
             return write!(f, "{size}{unit}");

@@ -370,7 +370,6 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                     disk_size += ns.size_bytes();
                 }
                 let id = ctrl.identify();
-                println!("{:?} {:?}", ctrl.address(), ctrl.host_transport_address());
                 result.push(Disk {
                     format_size: HumanBytes(disk_size).to_string(),
                     firmware_version: ctrl.firmware().ok().map(|f| f.to_string()),

@@ -122,6 +122,12 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                     nvmespc, firmware_version
                 );
             }
+            if let Some(smartlog) = &f.smartlog {
+                acc += &format!(
+                    "\n    temperature: {}℃, Percentage Used: {}% unit read/write: {}/{}",
+                    smartlog.temperature_celsius(), smartlog.percentage_used(), HumanBytes(smartlog.data_units_read()*512*1000), HumanBytes(smartlog.data_units_written()*512*1000)
+                );
+            }
 
             acc += "\n"
         }
