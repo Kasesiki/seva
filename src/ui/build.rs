@@ -15,7 +15,7 @@ use sysinfo::Motherboard;
 
 use crate::{
     App,
-    client::system::{HumanBytes, command_runs, sec_to_time},
+    client::system::{DiskBytes, HumanBytes, command_runs, sec_to_time},
     sys::{ModernDmiDecodedData, decode_dmi},
     ui::layout::{info_layout, main_layout, trend_layout},
 };
@@ -125,7 +125,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             if let Some(smartlog) = &f.smartlog {
                 acc += &format!(
                     "\n    temperature: {}℃, Percentage Used: {}% unit read/write: {}/{}",
-                    smartlog.temperature_celsius(), smartlog.percentage_used(), HumanBytes(smartlog.data_units_read()*512*1000), HumanBytes(smartlog.data_units_written()*512*1000)
+                    smartlog.temperature_celsius(), smartlog.percentage_used(), DiskBytes(smartlog.data_units_read()*512*1000), DiskBytes(smartlog.data_units_written()*512*1000)
                 );
             }
 

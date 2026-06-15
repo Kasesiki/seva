@@ -9,7 +9,7 @@ use dmidecode::{
 use libnvme::{NvmeVersion, SmartLog};
 use uuid::Uuid;
 
-use crate::client::system::{HumanBytes, command_runs};
+use crate::client::system::{DiskBytes, command_runs};
 
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
 const DMI_ENTRY_POINT_PATH: &str = "/sys/firmware/dmi/tables/smbios_entry_point";
@@ -371,7 +371,7 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                 }
                 let id = ctrl.identify();
                 result.push(Disk {
-                    format_size: HumanBytes(disk_size).to_string(),
+                    format_size: DiskBytes(disk_size).to_string(),
                     firmware_version: ctrl.firmware().ok().map(|f| f.to_string()),
                     disk_name: ctrl.model().ok().map(|f| f.to_string()),
                     bus_id: String::new(),
