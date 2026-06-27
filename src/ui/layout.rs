@@ -58,7 +58,7 @@ pub fn info_layout(
         Constraint::Fill(1),
         Constraint::Fill(1),
     ])
-    .areas(area.clone());
+    .areas(area);
 
     let [disk_space, _empty] =
         Layout::horizontal([Constraint::Fill(2), Constraint::Fill(1)]).areas(area);

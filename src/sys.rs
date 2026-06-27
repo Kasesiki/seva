@@ -354,10 +354,13 @@ pub struct Disk {
     pub firmware_version: Option<String>,
     pub format_pcie: Option<String>,
     pub nvmespc: Option<NvmeVersion>,
-    pub smartlog: Option<SmartLog>
+    pub smartlog: Option<SmartLog>,
 }
 //lsblk -o TYPE,NAME,SIZE | grep disk | awk '{print $2, $3}'
 pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
+    let is_root = command_runs(&[&["whoami"]])
+        .map(|f| f == "root")
+        .unwrap_or(false);
     let mut result = vec![];
     let root = libnvme::Root::scan()?;
     for host in root.hosts() {
@@ -367,7 +370,8 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                 for ns in ctrl.namespaces() {
                     disk_size += ns.size_bytes();
                 }
-                let id = ctrl.identify();
+
+                let id = if is_root { ctrl.identify().ok() } else { None };
                 result.push(Disk {
                     format_size: DiskBytes(disk_size).to_string(),
                     serial: ctrl.serial().ok().map(|f| f.to_string()),
@@ -375,10 +379,14 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                     disk_name: ctrl.model().ok().map(|f| f.to_string()),
                     bus_id: String::new(),
                     ssd: true,
-                    format_pcie: command_runs(&[&["lspci", "-s", ctrl.address().unwrap_or_default(), "-vvv"], &["grep", "-E", "LnkSta:"]])
-                        .map(|e| e.trim().split(":").last().unwrap_or_default().to_string()).ok(),
-                    nvmespc: id.ok().map(|f| f.nvme_version()),
-                    smartlog: ctrl.smart_log().ok(),
+                    format_pcie: command_runs(&[
+                        &["lspci", "-s", ctrl.address().unwrap_or_default(), "-vvv"],
+                        &["grep", "-E", "LnkSta:"],
+                    ])
+                    .map(|e| e.trim().split(":").last().unwrap_or_default().to_string())
+                    .ok(),
+                    nvmespc: id.map(|f| f.nvme_version()),
+                    smartlog: if is_root { ctrl.smart_log().ok() } else { None },
                 });
             }
         }

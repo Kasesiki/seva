@@ -27,6 +27,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
 
     let cpubrand = app.sys.cpus()[0].brand();
     let dmi = decode_dmi();
+
     Paragraph::new("hello? xiaxiaobai")
         .block(normal_block(""))
         .render(hello, buf);
@@ -44,7 +45,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         if let Ok(c) = command_runs(&[&["lscpu"], &["grep", "^L"]]) {
             cache = c.replace(" ", "");
         } else {
-            cache = String::from("以root权限启动以查看缓存信息");
+            cache = String::from("无法获取缓存信息");
         }
         if let Ok(dmi) = dmi.as_ref() {
             text = format!(
@@ -105,43 +106,56 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .block(normal_block("cpu").merge_borders(MergeStrategy::Exact))
         .render(cpu, buf);
 
-    let disk_test = app.disks.iter().fold(String::new(), |mut acc, f: &crate::sys::Disk| {
-        if let Some(name) = &f.disk_name {
-            acc += &format!(
-                "{}({}) {}",
-                name.trim(),
-                if f.ssd { "SSD" } else { "HDD" },
-                f.format_size,
-            );
-            if let Some(serial) = &f.serial {
-                acc += &format!(" - {}", serial);
-            }
-
-            if let Some(nvmespc) = &f.nvmespc && let Some(firmware_version) = &f.firmware_version {
+    let disk_test = app
+        .disks
+        .iter()
+        .fold(String::new(), |mut acc, f: &crate::sys::Disk| {
+            if let Some(name) = &f.disk_name {
                 acc += &format!(
-                    "\n  NVME spc: {}, firmware version: {}",
-                    nvmespc, firmware_version
+                    "{}({}) {}",
+                    name.trim(),
+                    if f.ssd { "SSD" } else { "HDD" },
+                    f.format_size,
                 );
-            }
-            if let Some(smartlog) = &f.smartlog {
-                acc += &format!("\n  media error: {}, unit read/written: {}/{}", smartlog.media_errors(), DiskBytes(smartlog.data_units_read()*512*1000), DiskBytes(smartlog.data_units_written()*512*1000));
-                if let Some(speed) = &f.format_pcie {
+                if let Some(serial) = &f.serial {
+                    acc += &format!(" - {}", serial);
+                }
+
+                if let Some(nvmespc) = &f.nvmespc
+                    && let Some(firmware_version) = &f.firmware_version
+                {
                     acc += &format!(
-                        "\n  temperature: {} C, Percentage Used: {}%, {}",
-                        smartlog.temperature_celsius(), smartlog.percentage_used(), speed
-                    );
-                } else {
-                    acc += &format!(
-                        "\n  temperature: {} C, Percentage Used: {}%",
-                        smartlog.temperature_celsius(), smartlog.percentage_used(), 
+                        "\n  NVME spc: {}, firmware version: {}",
+                        nvmespc, firmware_version
                     );
                 }
-            }
+                if let Some(smartlog) = &f.smartlog {
+                    acc += &format!(
+                        "\n  media error: {}, unit read/written: {}/{}",
+                        smartlog.media_errors(),
+                        DiskBytes(smartlog.data_units_read() * 512 * 1000),
+                        DiskBytes(smartlog.data_units_written() * 512 * 1000)
+                    );
+                    if let Some(speed) = &f.format_pcie {
+                        acc += &format!(
+                            "\n  temperature: {} C, Percentage Used: {}%, {}",
+                            smartlog.temperature_celsius(),
+                            smartlog.percentage_used(),
+                            speed
+                        );
+                    } else {
+                        acc += &format!(
+                            "\n  temperature: {} C, Percentage Used: {}%",
+                            smartlog.temperature_celsius(),
+                            smartlog.percentage_used(),
+                        );
+                    }
+                }
 
-            acc += "\n"
-        }
-        acc
-    });
+                acc += "\n"
+            }
+            acc
+        });
     Paragraph::new(disk_test)
         .block(normal_block("disk").merge_borders(MergeStrategy::Exact))
         .render(disk, buf);

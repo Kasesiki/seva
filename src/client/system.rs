@@ -53,7 +53,7 @@ pub struct HumanBytes<T: Copy + Into<u128>>(pub T);
 impl<T: Copy + Into<u128>> std::fmt::Display for HumanBytes<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const UNITS: [&str; 7] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
-        
+
         let bytes = self.0.into() as f64;
         let i = ((bytes.log2() / 10.0) as usize).min(UNITS.len() - 1);
         let unit = UNITS[i];
@@ -72,7 +72,7 @@ pub struct DiskBytes<T: Copy + Into<u128>>(pub T);
 impl<T: Copy + Into<u128>> std::fmt::Display for DiskBytes<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const UNITS: [&str; 7] = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
-        
+
         let bytes = self.0.into() as f64;
         let i = ((bytes.log2() / 10.0) as usize).min(UNITS.len() - 1);
         let unit = UNITS[i];

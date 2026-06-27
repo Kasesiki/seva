@@ -29,7 +29,7 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        token: ${{ secrets.GITHUBTOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}
         name: "Version ${{ steps.get_version.outputs.VERSION }} 🚀"
         draft: false
         prerelease: false
