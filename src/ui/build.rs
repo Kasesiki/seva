@@ -11,7 +11,7 @@ use ratatui::{
     },
 };
 use std::{io, ops::Deref, vec};
-use sysinfo::Motherboard;
+use sysinfo::{Motherboard, System};
 
 use crate::{
     App,
@@ -28,16 +28,17 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     let cpubrand = app.sys.cpus()[0].brand();
     let dmi = decode_dmi();
 
-    Paragraph::new("hello? xiaxiaobai")
+    Paragraph::new(format!("hello? {}", System::host_name().unwrap_or(String::from("linux"))))
         .block(normal_block(""))
         .render(hello, buf);
     let dmi = dmi.map(|dmi| ModernDmiDecodedData::from_dmidecoded(&dmi).unwrap());
 
     if let Some(mother) = Motherboard::new() {
         let mut text = format!(
-            "name: {}{}\ncpu name: {}\ncpu logic number: {}\n",
+            "name: {}{}\ncpu name: {}\ncpu arch: {}\ncpu logic number: {}\n",
             mother.vendor_name().unwrap_or_default(),
             mother.name().unwrap_or_default(),
+            System::cpu_arch(),
             cpubrand,
             app.sys.cpus().len()
         );

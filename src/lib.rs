@@ -73,11 +73,10 @@ impl App {
         );
 
         self.formats.os_message_format = format!(
-            "os name: {}\nos version: {}\ncpu name: {}\ncpu arch: {}\nMotherboard: {}\nkernel version: {}\nhost name: {}\nrunning time: {}\n{}\n",
+            "os: {}-{}\ncpu name: {}\nMotherboard: {}\nkernel version: {}\nhost name: {}\nup time: {}\n{}\n",
             System::name().unwrap_or_default(),
             System::os_version().unwrap_or(String::from("Unknown os version")),
             self.sys.cpus()[0].brand(),
-            System::cpu_arch(),
             Motherboard::new()
                 .map(|x| x.name().unwrap_or(String::new()))
                 .unwrap_or("".to_string()),
