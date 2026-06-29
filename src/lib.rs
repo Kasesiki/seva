@@ -30,6 +30,8 @@ pub mod client;
 pub mod sys;
 pub mod ui;
 
+const APP_VERSION: &'static str = "1.1.4-pre";
+
 unsafe impl Send for App {}
 pub struct App {
     pub state: ClientState,
@@ -67,7 +69,7 @@ impl App {
     fn once(mut self) -> Self {
         let gpu = get_gpu().unwrap_or_default();
         self.formats.tab = Rc::new(
-            Paragraph::new("Welcome to SeVA!   Press 'Q' to quit SEVA")
+            Paragraph::new(format!("Welcome to SeVA {APP_VERSION}!   Press 'Q' to quit SEVA"))
                 .alignment(ratatui::layout::Alignment::Center)
                 .block(normal_block("SEVA Control")),
         );
