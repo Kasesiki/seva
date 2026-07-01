@@ -1,13 +1,12 @@
 use std::{collections::HashMap, io, rc::Rc, time::Duration};
 
-use crossterm::event::{self, EventStream, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{self, EventStream, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use futures::{FutureExt, StreamExt};
 use ratatui::{
-    Frame,
     style::Style,
     symbols::{self, line::DOUBLE_VERTICAL, merge::MergeStrategy},
     text::Line,
-    widgets::{LineGauge, Paragraph, Widget},
+    widgets::{LineGauge, Paragraph},
 };
 use sysinfo::{
     Disks, Motherboard, Networks, Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System,
@@ -97,10 +96,6 @@ impl App {
         self.flash().unwrap();
 
         self
-    }
-
-    pub fn handle_ui(&self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
     }
 
     pub fn destory(self) -> io::Result<()> {
@@ -209,11 +204,11 @@ impl App {
                 .label(Line::default())
                 .ratio(self.sys.used_swap() as f64 / self.sys.total_swap() as f64),
         );
-
+            
         self.formats.disk_text = self.extend.disks.iter().fold(String::new(), |acc, disk| {
             let total_space = disk.total_space();
             if total_space < 8 * 1024 * 1024 * 1024 {
-                return acc;
+                return acc; 
             }
             acc + &format!(
                 "Disk Name: {:?}\n   file system: {:?}\n   used/total: {}/ {}\n   write/read: {}/ {}\n\n",
@@ -248,25 +243,18 @@ impl App {
             }
 
             terminal.draw(|frame| {
-                self.handle_ui(frame);
+                let area = frame.area();
+                let buf = frame.buffer_mut();
+                crate::client::stream::ui_state(self, area, buf);
+                if let Some(err) = &self.err {
+                    set_alert(area, buf, &err.to_string());
+                }
             })?;
         }
         ratatui::restore();
         terminal.show_cursor()?;
 
         Ok(())
-    }
-}
-
-impl Widget for &App {
-    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
-    where
-        Self: Sized,
-    {
-        crate::client::stream::ui_state(self, area, buf);
-        if let Some(err) = &self.err {
-            set_alert(area, buf, &err.to_string());
-        }
     }
 }
 
@@ -340,7 +328,7 @@ pub fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
                 main.extend.trend_sort = String::from("")
             }
         }
-        if key.code == KeyCode::Char('q') {
+        if key.code == KeyCode::Char('q') || (key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL)) {
             main.exit = true;
         }
     }
