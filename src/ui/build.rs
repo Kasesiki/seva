@@ -101,23 +101,23 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 }
                 if let Some(smartlog) = &f.smartlog {
                     acc += &format!(
-                        "\n  media error: {}, unit read/written: {}/{}",
-                        smartlog.media_errors(),
+                        "\n  temperature: {} C, unit read/written: {}/{}",
+                        smartlog.temperature_celsius(),
                         DiskBytes(smartlog.data_units_read() * 512 * 1000),
                         DiskBytes(smartlog.data_units_written() * 512 * 1000)
                     );
                     if let Some(speed) = &f.format_pcie {
                         acc += &format!(
-                            "\n  temperature: {} C, Percentage Used: {}%, {}",
-                            smartlog.temperature_celsius(),
+                            "\n  media error: {}, Percentage Used: {}%, {}",
+                            smartlog.media_errors(),
                             smartlog.percentage_used(),
                             speed
                         );
                     } else {
                         acc += &format!(
-                            "\n  temperature: {} C, Percentage Used: {}%",
-                            smartlog.temperature_celsius(),
-                            smartlog.percentage_used(),
+                            "\n  media error: {}, Percentage Used: {}%",
+                            smartlog.media_errors(),
+                            smartlog.percentage_used()
                         );
                     }
                 }
@@ -134,7 +134,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     if let Ok(memory) = dmi.map(|dmi| dmi.memory) {
         let mut i = 0;
         memory.devices.iter().for_each(|x| {
-            mem_text += &format!("slot{i}: {} ({}-{}) {:?}\n  from {} R/S: {}|{}MT/s\n  VMin/VMax: {}|{}mV VC: {}mV\n",
+            mem_text += &format!("slot{i}: {} ({}-{}) {:?}\n  from {} SMax/SC: {}|{}MT/s\n  VMin/VMax: {}|{}mV VC: {}mV\n",
             if x.part_number.is_empty() { "Unknown Part" } else { &x.part_number }, format!("{:?}", x.memory_type).to_uppercase(), HumanBytes(x.size), x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
             i += 1;
         });
