@@ -356,7 +356,7 @@ pub struct Disk {
     pub nvmespc: Option<NvmeVersion>,
     pub smartlog: Option<SmartLog>,
 }
-//lsblk -o TYPE,NAME,SIZE | grep disk | awk '{print $2, $3}'
+
 pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
     let mut result = vec![];
     let root = libnvme::Root::scan()?;

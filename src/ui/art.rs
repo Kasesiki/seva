@@ -13,7 +13,7 @@ use crate::ui::build::normal_block;
 #[derive(Debug, Clone)]
 struct OsIcon {
     name: &'static str,
-    logo: [&'static str; 20],
+    logo: [&'static str; 19],
     color: Vec<Color>,
 }
 
@@ -39,7 +39,6 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
         OsIcon {
             name: "ubuntu",
             logo: [
-                "                             ....        ",
                 "              $2.',:clooo:  $1.:looooo:. ",
                 "           $2.;looooooooc  $1.oooooooooo'",
                 "        $2.;looooool:,''.  $1:ooooooooooc",
@@ -93,7 +92,6 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
                 "        `Y$$$$b.",
                 "            `\"Y$$b._",
                 "                `\"\"\"\"",
-                "",
             ],
             color: Vec::from(&[
                 Color {
@@ -128,7 +126,6 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
                 "      `+sso+:-`                 `.-/+oso: ",
                 "     `++:.                           `-/+/",
                 "     .`                                 `/",
-                "                                          ",
             ],
             color: Vec::from(&[]),
         },
@@ -154,7 +151,6 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
                 "      `+sso+:-`                 `.-/+oso:",
                 "     `++:.                           `-/+/",
                 "     .`                                 `/",
-                "                                          ",
             ],
             color: Vec::from(&[Color {
                 char: 'o',
@@ -183,7 +179,6 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
                 "              $2<><><><>",
                 "               $2'MKKM'",
                 "                 $2''",
-                "",
             ],
             color: Vec::from(&[]),
         },
@@ -209,7 +204,6 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
                 "ccccccccccccccccccccccccccccc:'.",
                 ":ccccccccccccccccccccccc:;,..",
                 " ':cccccccccccccccc::;,.",
-                "",
             ],
             color: Vec::from(&[]),
         },
@@ -267,10 +261,10 @@ pub fn render_logo(area: Rect, buf: &mut Buffer) {
     for i in 1..=48 {
         let cell = &mut buf[(area.left() + i, area.top() + 1)];
         cell.set_char('-');
-        let cell = &mut buf[(area.left() + i, area.top() + 22)];
+        let cell = &mut buf[(area.left() + i, area.top() + 21)];
         cell.set_char('-');
     }
-    for i in 2..=21 {
+    for i in 2..=20 {
         let cell = &mut buf[(area.left(), area.top() + i)];
         cell.set_char('|');
         let cell = &mut buf[(area.left() + 48, area.top() + i)];

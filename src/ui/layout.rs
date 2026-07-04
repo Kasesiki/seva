@@ -10,12 +10,12 @@ pub fn main_layout(
 ) -> (Rect, Rect, Rect, Rect, Rect) {
     let [tabs, main] = Layout::vertical([Constraint::Length(3), Constraint::Fill(0)]).areas(area);
     // 25 + 2 + 1
-    if buf.area.as_size().height > 28+network_size as u16 {
+    if buf.area.as_size().height > 27+network_size as u16 {
         let [art_network, mem_os_process] =
             Layout::horizontal([Constraint::Length(53), Constraint::Fill(1)]).areas(main);
 
         let [art, network] =
-            Layout::vertical([Constraint::Length(24), Constraint::Fill(1)]).areas(art_network);
+            Layout::vertical([Constraint::Length(23), Constraint::Fill(1)]).areas(art_network);
 
         let [mem_os, process] =
             Layout::vertical([Constraint::Length(7+os_size as u16), Constraint::Fill(1)]).areas(mem_os_process);
