@@ -95,7 +95,7 @@ impl ModernDmiDecodedData {
                         manufacturer: String::from(device.manufacturer),
                         bank_locator: String::from(device.bank_locator),
                         serial_number: String::from(device.serial),
-                        part_number: String::from(device.part_number),
+                        part_number: String::from(device.part_number.trim()),
                         configured_speed: device.configured_memory_speed.unwrap_or_default(),
                         min_voltage: device.minimum_voltage.unwrap_or_default(),
                         max_voltage: device.maximum_voltage.unwrap_or_default(),
