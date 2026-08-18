@@ -38,17 +38,8 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     let dmi = dmi.map(|dmi| ModernDmiDecodedData::from_dmidecoded(&dmi).unwrap());
 
     if let Some(mother) = Motherboard::new() {
-        let mut text = format!(
-            "name: {}{}\ncpu name: {}\ncpu arch: {}\ncpu logic number: {}\n",
-            mother.vendor_name().unwrap_or_default(),
-            mother.name().unwrap_or_default(),
-            System::cpu_arch(),
-            cpubrand,
-            app.sys.cpus().len()
-        );
-
-        if let Ok(dmi) = dmi.as_ref() {
-            text = format!(
+        let text = if let Ok(dmi) = dmi.as_ref() {
+            let mut text = format!(
                 "product name: {}\nserial number: {}\ncpu name: {}\ncpu logic number: {}\n",
                 dmi.system.product_name,
                 dmi.system.serial_number,
@@ -63,9 +54,17 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 HumanBytes(dmi.memory.max_capacity)
             );
             text += &format!("physical memory slot count: {}\n", dmi.memory.max_slots);
+            text
         } else {
-            text += "以root权限启动以查看更多信息";
-        }
+            format!(
+                "name: {} {}\ncpu name: {}\ncpu arch: {}\ncpu logic number: {}\n以root权限启动以查看更多信息",
+                mother.vendor_name().unwrap_or_default(),
+                mother.name().unwrap_or_default(),
+                cpubrand,
+                System::cpu_arch(),
+                app.sys.cpus().len()
+            )
+        };
         Paragraph::new(text)
             .wrap(Wrap { trim: true })
             .block(normal_block("product"))
@@ -101,16 +100,16 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 }
                 if let Some(smartlog) = &f.smartlog {
                     acc += &format!(
-                        "\n  temperature: {} C, unit read/written: {}/{}",
-                        smartlog.temperature_celsius(),
+                        "\n  Percentage Used: {}%, read/written: {}/{}",
+                        smartlog.percentage_used(),
                         DiskBytes(smartlog.data_units_read() * 512 * 1000),
                         DiskBytes(smartlog.data_units_written() * 512 * 1000)
                     );
                     if let Some(speed) = &f.format_pcie {
                         acc += &format!(
-                            "\n  media error: {}, Percentage Used: {}%, {}",
+                            "\n  media error: {}, temperature: {} C, {}",
                             smartlog.media_errors(),
-                            smartlog.percentage_used(),
+                            smartlog.temperature_celsius(),
                             speed
                         );
                     } else {
@@ -130,17 +129,17 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .block(normal_block("disk").merge_borders(MergeStrategy::Exact))
         .render(disk, buf);
 
-    let mut mem_text = String::new();
-    if let Ok(memory) = dmi.map(|dmi| dmi.memory) {
+    let mem_text = if let Ok(memory) = dmi.map(|dmi| dmi.memory) {
         let mut i = 0;
-        memory.devices.iter().for_each(|x| {
-            mem_text += &format!("slot{i}: {} ({}-{}) {:?}\n  from {} SMax/SC: {}|{}MT/s\n  VMin/VMax: {}|{}mV VC: {}mV\n",
+        memory.devices.iter().fold(String::new(), |mut acc, x| {
+            acc += &format!("slot{i}: {} ({}-{}) {:?}\n  {}  SMax/SC: {}|{}MT/s\n  VMin/VMax: {}|{}mV VC: {}mV\n",
             if x.part_number.is_empty() { "Unknown Part" } else { &x.part_number }, format!("{:?}", x.memory_type).to_uppercase(), HumanBytes(x.size), x.trchnology, x.manufacturer, x.max_speed, x.configured_speed, x.min_voltage, x.max_voltage, x.configured_voltage);
             i += 1;
-        });
+            acc
+        })
     } else {
-        mem_text = String::from("以root权限启动以查看内存信息");
-    }
+        String::from("以root权限启动以查看内存信息")
+    };
     Paragraph::new(mem_text)
         .block(normal_block("mem"))
         .render(memory, buf);
