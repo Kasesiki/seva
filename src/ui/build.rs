@@ -89,7 +89,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 if let Some(serial) = &f.serial {
                     acc += &format!(" - {}", serial);
                 }
-
+                
                 if let Some(nvmespc) = &f.nvmespc
                     && let Some(firmware_version) = &f.firmware_version
                 {
@@ -99,24 +99,26 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                     );
                 }
                 if let Some(smartlog) = &f.smartlog {
+
                     acc += &format!(
-                        "\n  Percentage Used: {}%, read/written: {}/{}",
+                        "\n  Percentage Used: {}%, read/written: {}/{}\n  media error: {}, power cycle/on hour: {} / {}",
                         smartlog.percentage_used(),
                         DiskBytes(smartlog.data_units_read() * 512 * 1000),
-                        DiskBytes(smartlog.data_units_written() * 512 * 1000)
+                        DiskBytes(smartlog.data_units_written() * 512 * 1000),
+                        smartlog.media_errors(),
+                        smartlog.power_cycles(),
+                        smartlog.power_on_hours(),
                     );
                     if let Some(speed) = &f.format_pcie {
                         acc += &format!(
-                            "\n  media error: {}, temperature: {} C, {}",
-                            smartlog.media_errors(),
+                            "\n  temperature: {} C, {}",
                             smartlog.temperature_celsius(),
                             speed
                         );
                     } else {
                         acc += &format!(
-                            "\n  media error: {}, Percentage Used: {}%",
-                            smartlog.media_errors(),
-                            smartlog.percentage_used()
+                            "\n  temperature: {} C",
+                            smartlog.temperature_celsius(),
                         );
                     }
                 }
