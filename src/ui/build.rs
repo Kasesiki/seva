@@ -5,7 +5,7 @@ use ratatui::{
     },
 };
 use std::{io, ops::Deref, vec};
-use sysinfo::{Motherboard, System};
+use sysinfo::{Cpu, Motherboard, System};
 
 use crate::{
     App,
@@ -147,17 +147,17 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .render(memory, buf);
 }
 
-fn once_cpu(id: i32, usage: f32, area: Rect, buf: &mut Buffer) {
+fn once_cpu(id: i32, cpu: &Cpu, area: Rect, buf: &mut Buffer) {
     LineGauge::default()
         .filled_style(Style::new().blue().on_black().bold())
         .filled_symbol(VERTICAL)
         .unfilled_symbol(VERTICAL)
         .label(Line::default())
-        .ratio(usage as f64 / 100.0)
+        .ratio(cpu.cpu_usage() as f64 / 100.0)
         .render(area, buf);
     Paragraph::new(format!(
-        "cpu{id} {:.2}%",
-        usage
+        "cpu{id} {:.2}Mhz",
+        cpu.frequency()
     ))
     .alignment(ratatui::layout::HorizontalAlignment::Right)
     .render(area, buf);
@@ -207,20 +207,11 @@ pub fn trend_ui(
         }
         let disk = disks.get_mut(cursor).unwrap();
         let [disk_c, disk_f] = Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(*disk);
-        once_cpu(i, cpu.cpu_usage(), disk_c, buf);
+        once_cpu(i, cpu, disk_c, buf);
         *disk = disk_f;
         cursor+=1;
         i+=1;
-
     }
-
-    // let item1 = Text::from(app.formats.disk_text.as_str())
-    //     .centered()
-    //     .bg(Color::White)
-    //     .fg(Color::White);
-    // List::new(item1)
-    //     .block(normal_block("Disk"))
-    //     .render(disk, buf);
 
     let [process_top, process] =
         Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).areas(process);
