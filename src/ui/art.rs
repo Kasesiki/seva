@@ -253,7 +253,7 @@ pub fn init_art() {
 
 #[allow(clippy::cast_possible_truncation)]
 pub fn render_logo(area: Rect, buf: &mut Buffer) {
-    normal_block("art").render(area, buf);
+    normal_block("icon").render(area, buf);
     let area = area.inner(Margin {
         vertical: 0,
         horizontal: 2,
