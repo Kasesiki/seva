@@ -6,7 +6,6 @@ use seva::{
         ClientState::{Info, Main, Trend},
         ui_state,
     },
-    ui::art::init_art,
 };
 
 fn rectbench(bencher: &mut Bencher, app: &mut App, size: Rect) {
@@ -34,7 +33,6 @@ fn appflash_benchmark(c: &mut Criterion) {
 fn full_benchmark(c: &mut Criterion) {
     let size = Rect::new(0, 0, 440, 150);
     let mut app = seva::App::new().expect("Create App Error");
-    init_art();
     c.bench_function("full_main", |b| {
         app.state = Main;
         rectbench(b, &mut app, size)

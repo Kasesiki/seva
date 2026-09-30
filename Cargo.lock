@@ -1598,7 +1598,6 @@ dependencies = [
  "dmidecode",
  "futures",
  "libnvme",
- "once_cell",
  "queue",
  "ratatui",
  "sysinfo",

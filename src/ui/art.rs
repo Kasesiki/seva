@@ -1,6 +1,5 @@
 use std::{collections::HashMap, sync::LazyLock};
 
-use once_cell::sync::OnceCell;
 use ratatui::{
     buffer::Buffer,
     layout::{Margin, Rect},
@@ -212,7 +211,13 @@ static OS_ICONS: LazyLock<[OsIcon; 6]> = std::sync::LazyLock::new(|| {
 
 static NORMAL_RENDERED_ICON: LazyLock<RenderedIcon> = LazyLock::new(RenderedIcon::default);
 static CURRENT_DISTRO: LazyLock<String> = LazyLock::new(System::distribution_id);
-static RENDERED_ICON_MAP: OnceCell<HashMap<String, RenderedIcon>> = OnceCell::new();
+static RENDERED_ICON_MAP: LazyLock<HashMap<String, RenderedIcon>> = LazyLock::new(|| {
+    let mut temp = HashMap::new();
+    for icon in OS_ICONS.iter() {
+        temp.insert(String::from(icon.name), build_rendered_icon(icon));
+    }
+    temp
+});
 
 fn build_rendered_icon(icon: &OsIcon) -> RenderedIcon {
     let default_color = icon
@@ -243,14 +248,6 @@ fn build_rendered_icon(icon: &OsIcon) -> RenderedIcon {
     }
 }
 
-pub fn init_art() {
-    let mut temp = HashMap::new();
-    for icon in OS_ICONS.iter() {
-        temp.insert(String::from(icon.name), build_rendered_icon(icon));
-    }
-    RENDERED_ICON_MAP.set(temp).unwrap();
-}
-
 #[allow(clippy::cast_possible_truncation)]
 pub fn render_logo(area: Rect, buf: &mut Buffer) {
     normal_block("icon").render(area, buf);
@@ -271,8 +268,6 @@ pub fn render_logo(area: Rect, buf: &mut Buffer) {
         cell.set_char('|');
     }
     let icon = RENDERED_ICON_MAP
-        .get()
-        .unwrap()
         .get(CURRENT_DISTRO.as_str())
         .unwrap_or(&NORMAL_RENDERED_ICON);
     for (y, line) in icon.lines.iter().enumerate() {
