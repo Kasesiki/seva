@@ -1,5 +1,7 @@
 use std::sync::atomic::AtomicBool;
 
+use ratatui::{layout::{Constraint, Layout}, widgets::{Paragraph, Widget}};
+
 use crate::{
     client::server,
     ui::build::{info_ui, main_ui, trend_ui},
@@ -23,11 +25,15 @@ pub fn ui_state(
     area: ratatui::prelude::Rect,
     buf: &mut ratatui::prelude::Buffer,
 ) {
+    let [area, command] = Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(area);
     match app.state {
         ClientState::Trend => trend_ui(app, area, buf),
         ClientState::Main => main_ui(app, area, buf),
         ClientState::Info => info_ui(app, area, buf),
         ClientState::Serve => server::main_ui(app, area, buf),
+    }
+    if let Some(text) = app.command_buf.as_ref() {
+        Paragraph::new(text.as_str()).render(command, buf);
     }
 }
 

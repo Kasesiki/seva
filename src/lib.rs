@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io, rc::Rc, time::Duration};
 
-use crossterm::event::{self, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, KeyCode::{self, Backspace, Enter}, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{
     style::Style,
     symbols::{self, line::DOUBLE_VERTICAL, merge::MergeStrategy},
@@ -31,6 +31,7 @@ pub mod ui;
 const APP_VERSION: &str = "1.1.7-pre";
 
 unsafe impl Send for App {}
+
 pub struct App {
     pub state: ClientState,
     pub exit: bool,
@@ -43,11 +44,11 @@ pub struct App {
     pub network: Networks,
     pub formats: Format,
     pub disks: Vec<Disk>,
+    pub command_buf: Option<String>,
 }
 
 impl App {
     pub fn new() -> Result<App, anyhow::Error> {
-        let config = Config::new();
         Ok(App {
             state: ClientState::Main,
             exit: false,
@@ -55,11 +56,12 @@ impl App {
             sys_line: SystemLine::new(),
             err: None,
             extend: Extend::new()?,
-            config: config.clone(),
-            service: Serve::new(config.services),
+            disks: take_sys_disk()?,
+            config: Config::new(),
+            service: Serve::new(vec![]),
             network: Networks::new_with_refreshed_list(),
             formats: Format::default(),
-            disks: take_sys_disk().unwrap(),
+            command_buf: None,
         }
         .once())
     }
@@ -161,6 +163,9 @@ impl App {
                 continue;
             }
             let item = MutProcess::from_process(item);
+            if let Some(filter) = self.extend.process_filter.as_ref() && !item.cmd.contains(filter) {
+                continue;
+            }
             let mem = item.memory;
             let cpu_usage = item.cpu_usage;
 
@@ -280,6 +285,7 @@ pub struct Extend {
     pub space: bool,
     pub disks: Disks,
     pub processes: Vec<MutProcess>,
+    pub process_filter: Option<String>,
 }
 
 impl Extend {
@@ -306,6 +312,25 @@ pub fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
             && key.code == KeyCode::Enter
         {
             main.err = None;
+        }
+        if let Some(text) = main.command_buf.as_mut() {
+            if let Some(char) = key.code.as_char() {
+                text.push(char);
+            } else if key.code == Backspace {
+                text.pop();
+            } else if key.code == Enter {
+                if text[1..].as_bytes() == b"unset" {
+                    main.extend.process_filter = None;
+                } else {
+                    main.extend.process_filter = Some(text[1..].to_string());
+                }
+                main.command_buf = None;
+            }
+            return Ok(())
+        }
+        if key.code == KeyCode::Char('/') {
+            main.command_buf = Some(String::from("/"));
+            return Ok(())
         }
         if key.code == KeyCode::Tab {
             crate::client::stream::reset_state(&mut main.state);

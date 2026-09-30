@@ -20,7 +20,7 @@ pub struct Config {
 impl Config {
     pub fn new() -> Config {
         Config {
-            services: Vec::new(),
+            services: vec![],
         }
     }
 }

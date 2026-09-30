@@ -408,19 +408,15 @@ impl PercentageChart {
             );
         }
 
-        top = format!("{:.2}", top).parse::<f64>().unwrap();
-        min = format!("{:.2}", min).parse::<f64>().unwrap();
         let mid = format!("{:.2}", (top + min) / 2.0).parse::<f64>().unwrap();
-        let tmid = format!("{:.2}", (top + mid) / 2.0).parse::<f64>().unwrap();
-        let mmid = format!("{:.2}", (min + mid) / 2.0).parse::<f64>().unwrap();
 
         Chart::new(re_vec)
             .x_axis(Axis::default().bounds([0.0, capacity]))
             .y_axis(Axis::default().bounds([min, top]).labels([
                 min.to_string() + "%",
-                mmid.to_string() + "%",
+                format!("{:.2}%", (min + mid) / 2.0),
                 mid.to_string() + "%",
-                tmid.to_string() + "%",
+                format!("{:.2}%", (top + mid) / 2.0),
                 top.to_string() + "%",
             ]))
             .hidden_legend_constraints((Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)))
