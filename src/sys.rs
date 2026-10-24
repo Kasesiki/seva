@@ -369,12 +369,8 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                     ])
                     .ok()
                     .and_then(|e| {
-                        let e = e.trim().split(":").last().unwrap_or_default().to_string();
-                        if e.is_empty() {
-                            None
-                        } else {
-                            Some(e)
-                        }
+                        e.trim().split(":").last()
+                        .and_then(|f| if f.is_empty() { None } else { Some(f.to_string()) })
                     });
                 let mut disk_size: u64 = 0;
                 for ns in ctrl.namespaces() {
@@ -382,6 +378,7 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                 }
 
                 let id = if pcie.is_some() { ctrl.identify().ok() } else { None };
+
                 result.push(Disk {
                     format_size: DiskBytes(disk_size).to_string(),
                     serial: ctrl.serial().ok().map(|f| f.to_string()),
@@ -389,7 +386,7 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                     disk_name: ctrl.model().ok().map(|f| f.to_string()),
                     bus_id: String::new(),
                     ssd: true,
-                    smartlog: if pcie.is_some() { ctrl.smart_log().ok() } else { None },
+                    smartlog: if id.is_some() { ctrl.smart_log().ok() } else { None },
                     format_pcie: pcie,
                     nvmespc: id.map(|f| f.nvme_version()),
                     
