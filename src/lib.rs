@@ -1,6 +1,10 @@
 use std::{collections::HashMap, io, rc::Rc, time::Duration};
 
-use crossterm::event::{self, KeyCode::{self, Backspace, Enter}, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{
+    self,
+    KeyCode::{self, Backspace, Enter},
+    KeyEvent, KeyEventKind, KeyModifiers,
+};
 use ratatui::{
     style::Style,
     symbols::{self, line::DOUBLE_VERTICAL, merge::MergeStrategy},
@@ -16,6 +20,7 @@ use crate::{
         server::{self, Serve},
         system::{Config, FmtTime, SystemLine, command_runs, from_osstring},
     },
+    edid::{DisplayTag, find_edid},
     sys::{Disk, take_sys_disk},
     ui::build::{Tui, normal_block, set_alert},
 };
@@ -25,6 +30,7 @@ use crate::{
 };
 
 pub mod client;
+pub mod edid;
 pub mod sys;
 pub mod ui;
 
@@ -45,10 +51,57 @@ pub struct App {
     pub formats: Format,
     pub disks: Vec<Disk>,
     pub command_buf: Option<String>,
+    pub displays: String,
 }
 
 impl App {
     pub fn new() -> Result<App, anyhow::Error> {
+        let screens = find_edid().unwrap_or_default();
+        let displays = if screens.len() != 0 {
+            let mut result = String::new();
+            for (i, screen) in screens.iter().enumerate() {
+                let mut productname = None;
+                let mut refresh_rate = None;
+                for descriptor in &screen.display_descriptors {
+                    match descriptor {
+                        DisplayTag::ProductName(name) => {
+                            productname = Some(name.clone());
+                        }
+                        DisplayTag::DisplayRangeLimit((_, max)) => {
+                            refresh_rate = Some(max);
+                        }
+                        _ => {}
+                    };
+                }
+
+                result.push_str(&format!(
+                    "display{i}: {} {}{} {}",
+                    if let Some(name) = productname {
+                        format!("{name}({})", &screen.manufacture_pnp)
+                    } else {
+                        format!("({})", &screen.manufacture_pnp)
+                    },
+                    if let Some(size) = screen.screen_size {
+                        format!("{size}in")
+                    } else {
+                        String::new()
+                    },
+                    if let Some(rate) = refresh_rate {
+                        format!("@{rate}hz")
+                    } else {
+                        String::new()
+                    },
+                    if let Some(ratio) = &screen.aspect_ratio {
+                        ratio.to_owned()
+                    } else {
+                        String::new()
+                    }
+                ));
+            }
+            result
+        } else {
+            String::new()
+        };
         Ok(App {
             state: ClientState::Main,
             exit: false,
@@ -62,6 +115,7 @@ impl App {
             network: Networks::new_with_refreshed_list(),
             formats: Format::default(),
             command_buf: None,
+            displays,
         }
         .once())
     }
@@ -122,8 +176,7 @@ impl App {
                 self.sys.refresh_memory();
                 self.merge_process();
             }
-            ClientState::Info => {
-            }
+            ClientState::Info => {}
             ClientState::Serve => todo!(),
         }
 
@@ -163,7 +216,9 @@ impl App {
                 continue;
             }
             let item = MutProcess::from_process(item);
-            if let Some(filter) = self.extend.process_filter.as_ref() && !item.cmd.contains(filter) {
+            if let Some(filter) = self.extend.process_filter.as_ref()
+                && !item.cmd.contains(filter)
+            {
                 continue;
             }
             let mem = item.memory;
@@ -326,11 +381,11 @@ pub fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
                 }
                 main.command_buf = None;
             }
-            return Ok(())
+            return Ok(());
         }
         if key.code == KeyCode::Char('/') {
             main.command_buf = Some(String::from("/"));
-            return Ok(())
+            return Ok(());
         }
         if key.code == KeyCode::Tab {
             crate::client::stream::reset_state(&mut main.state);

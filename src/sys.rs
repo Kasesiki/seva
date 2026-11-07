@@ -1,5 +1,6 @@
 use std::{
-    fs, io,
+    fs,
+    io::{self},
     path::{Path, PathBuf},
 };
 
@@ -364,20 +365,29 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
         for subsys in host.subsystems() {
             for ctrl in subsys.controllers() {
                 let pcie = command_runs(&[
-                        &["lspci", "-s", ctrl.address().unwrap_or_default(), "-vvv"],
-                        &["grep", "-E", "LnkSta:"],
-                    ])
-                    .ok()
-                    .and_then(|e| {
-                        e.trim().split(":").last()
-                        .and_then(|f| if f.is_empty() { None } else { Some(f.to_string()) })
-                    });
+                    &["lspci", "-s", ctrl.address().unwrap_or_default(), "-vvv"],
+                    &["grep", "-E", "LnkSta:"],
+                ])
+                .ok()
+                .and_then(|e| {
+                    e.trim().split(":").last().and_then(|f| {
+                        if f.is_empty() {
+                            None
+                        } else {
+                            Some(f.to_string())
+                        }
+                    })
+                });
                 let mut disk_size: u64 = 0;
                 for ns in ctrl.namespaces() {
                     disk_size += ns.size_bytes();
                 }
 
-                let id = if pcie.is_some() { ctrl.identify().ok() } else { None };
+                let id = if pcie.is_some() {
+                    ctrl.identify().ok()
+                } else {
+                    None
+                };
 
                 result.push(Disk {
                     format_size: DiskBytes(disk_size).to_string(),
@@ -386,10 +396,13 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                     disk_name: ctrl.model().ok().map(|f| f.to_string()),
                     bus_id: String::new(),
                     ssd: true,
-                    smartlog: if id.is_some() { ctrl.smart_log().ok() } else { None },
+                    smartlog: if id.is_some() {
+                        ctrl.smart_log().ok()
+                    } else {
+                        None
+                    },
                     format_pcie: pcie,
                     nvmespc: id.map(|f| f.nvme_version()),
-                    
                 });
             }
         }

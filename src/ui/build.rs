@@ -1,7 +1,14 @@
 use queue::Queue;
 use ratatui::{
-    Terminal, buffer::Buffer, layout::{Constraint, Flex, Layout, Margin, Rect, Spacing}, style::{Style}, symbols::{Marker, border, line::{VERTICAL}, merge::MergeStrategy}, text::{Line}, widgets::{
-        Axis, Block, Chart, Clear, Dataset, GraphType, LineGauge, List, Padding, Paragraph, Widget, Wrap,
+    Terminal,
+    buffer::Buffer,
+    layout::{Constraint, Flex, Layout, Margin, Rect, Spacing},
+    style::Style,
+    symbols::{Marker, border, line::VERTICAL, merge::MergeStrategy},
+    text::Line,
+    widgets::{
+        Axis, Block, Chart, Clear, Dataset, GraphType, LineGauge, List, Padding, Paragraph, Widget,
+        Wrap,
     },
 };
 use std::{io, ops::Deref, vec};
@@ -24,7 +31,8 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         cache = String::from("无法获取缓存信息");
     }
 
-    let (hello, product, cache_rect, disk, memory) = info_layout(area, buf, cache.lines().collect::<Vec<&str>>().len());
+    let (hello, product, cache_rect, disk, memory) =
+        info_layout(area, buf, cache.lines().collect::<Vec<&str>>().len());
 
     let cpubrand = app.sys.cpus()[0].brand();
     let dmi = decode_dmi();
@@ -38,7 +46,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     let dmi = dmi.map(|dmi| ModernDmiDecodedData::from_dmidecoded(&dmi).unwrap());
 
     if let Some(mother) = Motherboard::new() {
-        let text = if let Ok(dmi) = dmi.as_ref() {
+        let mut text = if let Ok(dmi) = dmi.as_ref() {
             let mut text = format!(
                 "product name: {}\nserial number: {}\ncpu name: {}\ncpu logic number: {}\n",
                 dmi.system.product_name,
@@ -57,7 +65,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             text
         } else {
             format!(
-                "name: {} {}\ncpu name: {}\ncpu arch: {}\ncpu logic number: {}\n以root权限启动以查看更多信息",
+                "name: {} {}\ncpu name: {}\ncpu arch: {}\ncpu logic number: {}\n",
                 mother.vendor_name().unwrap_or_default(),
                 mother.name().unwrap_or_default(),
                 cpubrand,
@@ -65,6 +73,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 app.sys.cpus().len()
             )
         };
+        text.push_str(&app.displays);
         Paragraph::new(text)
             .wrap(Wrap { trim: true })
             .block(normal_block("product"))
@@ -89,7 +98,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 if let Some(serial) = &f.serial {
                     acc += &format!(" - {}", serial);
                 }
-                
+
                 if let Some(nvmespc) = &f.nvmespc
                     && let Some(firmware_version) = &f.firmware_version
                 {
@@ -155,12 +164,9 @@ fn once_cpu(id: i32, cpu: &Cpu, area: Rect, buf: &mut Buffer) {
         .label(Line::default())
         .ratio(cpu.cpu_usage() as f64 / 100.0)
         .render(area, buf);
-    Paragraph::new(format!(
-        "cpu{id} {:.2}Mhz",
-        cpu.frequency()
-    ))
-    .alignment(ratatui::layout::HorizontalAlignment::Right)
-    .render(area, buf);
+    Paragraph::new(format!("cpu{id} {:.2}Mhz", cpu.frequency()))
+        .alignment(ratatui::layout::HorizontalAlignment::Right)
+        .render(area, buf);
 }
 
 pub fn trend_ui(
@@ -184,7 +190,7 @@ pub fn trend_ui(
         ],
         vec![
             Style::new().red(),
-            Style::new().green(), 
+            Style::new().green(),
             Style::new().cyan(),
         ],
     );
@@ -196,21 +202,27 @@ pub fn trend_ui(
 
     let mut cpu_iter = app.sys.cpus().iter();
 
-    let mut disks: [Rect; 3] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1), Constraint::Fill(1)]).areas(disk);
-    
+    let mut disks: [Rect; 3] = Layout::horizontal([
+        Constraint::Fill(1),
+        Constraint::Fill(1),
+        Constraint::Fill(1),
+    ])
+    .areas(disk);
+
     let mut cursor = 0;
     let mut i = 1;
-    
+
     while let Some(cpu) = cpu_iter.next() {
         if cursor == disks.len() {
             cursor = 0;
         }
         let disk = disks.get_mut(cursor).unwrap();
-        let [disk_c, disk_f] = Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(*disk);
+        let [disk_c, disk_f] =
+            Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(*disk);
         once_cpu(i, cpu, disk_c, buf);
         *disk = disk_f;
-        cursor+=1;
-        i+=1;
+        cursor += 1;
+        i += 1;
     }
 
     let [process_top, process] =
@@ -246,7 +258,17 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         ));
     }
 
-    let (tabs, line, os, network, process) = main_layout(area, buf, items.len(), app.formats.os_message_format.lines().collect::<Vec<&str>>().len()+2);
+    let (tabs, line, os, network, process) = main_layout(
+        area,
+        buf,
+        items.len(),
+        app.formats
+            .os_message_format
+            .lines()
+            .collect::<Vec<&str>>()
+            .len()
+            + 2,
+    );
 
     List::new(items)
         .block(normal_block("network"))
@@ -296,8 +318,6 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .wrap(Wrap { trim: true })
         .block(normal_block("os"))
         .render(os, buf);
-
-
 
     let (a, b) = if buf.area.as_size().height > 25 {
         short_process(app)

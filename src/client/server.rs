@@ -52,10 +52,10 @@ pub struct Serve {
 
 impl Serve {
     pub fn new(services: Vec<String>) -> Serve {
-        Serve {           
-             _cursor: 0,
+        Serve {
+            _cursor: 0,
             statu: ServeStatu::Normal,
-            services
+            services,
         }
     }
 }

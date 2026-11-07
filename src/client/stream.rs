@@ -1,6 +1,9 @@
 use std::sync::atomic::AtomicBool;
 
-use ratatui::{layout::{Constraint, Layout}, widgets::{Paragraph, Widget}};
+use ratatui::{
+    layout::{Constraint, Layout},
+    widgets::{Paragraph, Widget},
+};
 
 use crate::{
     client::server,
@@ -25,7 +28,8 @@ pub fn ui_state(
     area: ratatui::prelude::Rect,
     buf: &mut ratatui::prelude::Buffer,
 ) {
-    let [area, command] = Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(area);
+    let [area, command] =
+        Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(area);
     match app.state {
         ClientState::Trend => trend_ui(app, area, buf),
         ClientState::Main => main_ui(app, area, buf),
