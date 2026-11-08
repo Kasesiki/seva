@@ -1,0 +1,10 @@
+prefix=pkgconfig
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: libnvme
+Description: Manage "libnvme" subsystem devices (Non-volatile Memory Express)
+URL: http://github.com/linux-nvme/libnvme/
+Version: 1.16.2
+Libs: -L${libdir} -lnvme
+Cflags: -I${includedir}

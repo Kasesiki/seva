@@ -9,31 +9,43 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@4
+    
+      - name: Set environment
+        run: |
+          export PKG_CONFIG_SYS_ROOT_DIR=pkgconfig
+
+      - name: Build
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+
   build:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install libnvme dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libnvme-dev
-    
-    - name: Get version from tag
-      id: get_version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v4
       
-    - name: Build
-      run: cargo build --verbose --release
+      - name: Set environment
+        run: |
+          export PKG_CONFIG_SYS_ROOT_DIR=pkgconfig
       
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        name: "Version ${{ steps.get_version.outputs.VERSION }} 🚀"
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-        body_path: "changelog/v${{ steps.get_version.outputs.VERSION }}.md"
-        files: |
-          target/release/seva
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        
+      - name: Build
+        run: cargo build --release --target x86_64-unknown-linux-musl
+        
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "Version ${{ steps.get_version.outputs.VERSION }} 🚀"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body_path: "changelog/v${{ steps.get_version.outputs.VERSION }}.md"
+          files: |
+            target/x86_64-unknown-linux-musl/release/seva
