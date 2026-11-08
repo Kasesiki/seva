@@ -34,7 +34,7 @@ pub mod edid;
 pub mod sys;
 pub mod ui;
 
-const APP_VERSION: &str = "1.1.7-pre";
+const APP_VERSION: &str = "1.2.0";
 
 unsafe impl Send for App {}
 
