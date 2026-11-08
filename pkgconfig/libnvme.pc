@@ -1,6 +1,5 @@
-prefix=pkgconfig
-includedir=${prefix}/include
-libdir=${prefix}/lib
+includedir=${pcfiledir}/include
+libdir=${pcfiledir}/lib
 
 Name: libnvme
 Description: Manage "libnvme" subsystem devices (Non-volatile Memory Express)
