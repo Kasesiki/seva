@@ -18,6 +18,7 @@ pub struct EDID {
     pub screen_size: Option<u8>,
     pub aspect_ratio: Option<String>,
     pub display_descriptors: Vec<DisplayTag>,
+    pub resolution: Option<(u32, u32)>,
 }
 
 #[derive(Debug)]
@@ -157,17 +158,40 @@ impl EDID {
 
         //todo Established Timings
 
-        let aspect_ratio = match edidvec[0x27] >> 6 {
-            0b00 => "16:10",
-            0b01 => "4:3",
-            0b10 => "5:4",
-            0b11 => "16:9",
-            _ => "",
+        let (aspect_ratio, verts) = match edidvec[0x27] >> 6 {
+            0b00 => ("16:10", vec![800, 900, 1050, 1200, 1600, 1800]),
+            0b01 => ("4:3", vec![480, 600, 768, 960, 1050, 1200, 1536]),
+            0b10 => ("5:4", vec![1024]),
+            0b11 => ("16:9", vec![1080, 1400, 2160]),
+            _ => ("", vec![]),
         };
 
         let mut descriptors = vec![];
+        let mut resolution = None;
+        
 
         if let Some(x) = display_tag_parse(&edidvec[0x48..=0x59]) {
+            if let DisplayTag::DisplayRangeLimit((_, max)) = x {
+                let mut vert = (edidvec[0x48+8] as u32) * 1000 / max as u32;
+                for (id, i) in verts.iter().enumerate() {
+                    if *i > vert && id != 0 {
+                        vert = verts[id-1]
+                    }
+                }
+                if !verts.contains(&vert) {
+                    vert = verts[verts.len() - 1]
+                }
+                let hori = match edidvec[0x27] >> 6 {
+                    0b00 => vert as f32 * 1.6,
+                    0b01 => vert as f32 / 3.0 * 4.0,
+                    0b10 => vert as f32 / 4.0 * 5.0,
+                    0b11 => vert as f32 / 9.0 * 16.0,
+                    _ => 0.0,
+                };
+                if hori != 0.0 {
+                    resolution = Some((hori as u32, vert))
+                }
+            }
             descriptors.push(x);
         };
         if let Some(x) = display_tag_parse(&edidvec[0x5a..=0x6b]) {
@@ -190,6 +214,7 @@ impl EDID {
                 Some(String::from(aspect_ratio))
             },
             display_descriptors: descriptors,
+            resolution
         })
     }
 }

@@ -61,21 +61,22 @@ impl App {
             let mut result = String::new();
             for (i, screen) in screens.iter().enumerate() {
                 let mut productname = None;
-                let mut refresh_rate = None;
+                let mut refresh_rate = String::new();
                 for descriptor in &screen.display_descriptors {
                     match descriptor {
                         DisplayTag::ProductName(name) => {
                             productname = Some(name.clone());
                         }
                         DisplayTag::DisplayRangeLimit((_, max)) => {
-                            refresh_rate = Some(max);
+                            let reso = screen.resolution.unwrap_or((0, 0));
+                            refresh_rate = format!("{}x{}@{}hz", reso.0, reso.1, max);
                         }
                         _ => {}
                     };
                 }
 
                 result.push_str(&format!(
-                    "display{i}: {} {}{} {}",
+                    "display{i}: {} {} {} {}",
                     if let Some(name) = productname {
                         format!("{name}({})", &screen.manufacture_pnp)
                     } else {
@@ -86,11 +87,7 @@ impl App {
                     } else {
                         String::new()
                     },
-                    if let Some(rate) = refresh_rate {
-                        format!("@{rate}hz")
-                    } else {
-                        String::new()
-                    },
+                    refresh_rate,
                     if let Some(ratio) = &screen.aspect_ratio {
                         ratio.to_owned()
                     } else {
