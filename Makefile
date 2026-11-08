@@ -1,10 +1,10 @@
 OBJS = $(shell find src -name '*.rs')
 
-target/release/seva: $(OBJS)
-	cargo build --release --target x86_64-unknown-linux-musl
+target/x86_64-unknown-linux-musl/release/seva: $(OBJS)
+	PKG_CONFIG_SYS_ROOT_DIR=pkgconfig cargo build --release --target x86_64-unknown-linux-musl
 
-install: target/release/seva
-	cp target/release/seva /usr/bin/seva
+install: target/x86_64-unknown-linux-musl/release/seva
+	cp target/x86_64-unknown-linux-musl/release/seva /usr/bin/seva
 
 clean:
 	cargo clean

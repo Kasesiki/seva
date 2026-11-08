@@ -20,8 +20,9 @@ jobs:
         
       - name: Build
         run: |
-          rustup target add x86_64-unknown-linux-musl 
-          PKG_CONFIG_SYS_ROOT_DIR=pkgconfig cargo build --release --target x86_64-unknown-linux-musl
+          rustup target add x86_64-unknown-linux-musl
+          pwd
+          make
         
       - name: Create Release
         uses: softprops/action-gh-release@v1
