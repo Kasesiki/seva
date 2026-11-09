@@ -74,22 +74,17 @@ impl App {
                         _ => {}
                     };
                 }
-
+                ;
                 result.push_str(&format!(
-                    "display{i}: {} {} {} {}",
+                    "display{i}: {} {} {}\n",
                     if let Some(name) = productname {
-                        format!("{name}({})", &screen.manufacture_pnp)
+                        format!("{name}({}{})", &screen.manufacture_pnp, screen.screen_size.map(|f| format!(" {f}in")).unwrap_or_default())
                     } else {
-                        format!("({})", &screen.manufacture_pnp)
-                    },
-                    if let Some(size) = screen.screen_size {
-                        format!("{size}in")
-                    } else {
-                        String::new()
+                        format!("({}{})", &screen.manufacture_pnp, screen.screen_size.map(|f| format!(" {f}in")).unwrap_or_default())
                     },
                     refresh_rate,
-                    if let Some(ratio) = &screen.aspect_ratio {
-                        ratio.to_owned()
+                    if let Some(color) = &screen.video_input.as_ref().and_then(|f| f.color_depth) {
+                        format!("{color}bit")
                     } else {
                         String::new()
                     }
@@ -128,12 +123,13 @@ impl App {
         );
 
         self.formats.os_message_format = format!(
-            "os: {}-{}\ncpu name: {}\nMotherboard: {}\nkernel version: {}\nhost name: {}\nup time: {}\n{}\n",
+            "os: {}-{}\ncpu name: {}{}\nkernel version: {}\nhost name: {}\nup time: {}\n{}\n",
             System::name().unwrap_or_default(),
             System::os_version().unwrap_or(String::from("Unknown os version")),
             self.sys.cpus()[0].brand(),
             Motherboard::new()
-                .map(|x| x.name().unwrap_or(String::new()))
+                .and_then(|x| x.name().and_then(|f| if f == "INVALID" { None } else { Some(f) }))
+                .map(|f| "\nMotherboard: ".to_string() + &f)
                 .unwrap_or("".to_string()),
             System::kernel_version().unwrap_or_default(),
             System::host_name().unwrap_or(String::from("linux")),

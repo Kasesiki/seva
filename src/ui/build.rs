@@ -39,7 +39,7 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
 
     Paragraph::new(format!(
         "hello? {}",
-        System::host_name().unwrap_or(String::from("linux"))
+        System::host_name().unwrap_or(String::from("user"))
     ))
     .block(normal_block(""))
     .render(hello, buf);
@@ -48,15 +48,12 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
     if let Some(mother) = Motherboard::new() {
         let mut text = if let Ok(dmi) = dmi.as_ref() {
             let mut text = format!(
-                "product name: {}\nserial number: {}\ncpu name: {}\ncpu logic number: {}\n",
-                dmi.system.product_name,
-                dmi.system.serial_number,
+                "name: {} {}\ncpu name: {} {}c\n",
+                mother.vendor_name().unwrap_or_default(),
+                mother.name().unwrap_or_default(),
                 cpubrand,
                 app.sys.cpus().len(),
             );
-            if let Some(family) = &dmi.system.family {
-                text += &format!("system family: {}\n", family)
-            }
             text += &format!(
                 "system max memory: {}\n",
                 HumanBytes(dmi.memory.max_capacity)
@@ -65,12 +62,12 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             text
         } else {
             format!(
-                "name: {} {}\ncpu name: {}\ncpu arch: {}\ncpu logic number: {}\n",
+                "name: {} {}\ncpu name: {} {}c\ncpu arch: {}\n",
                 mother.vendor_name().unwrap_or_default(),
                 mother.name().unwrap_or_default(),
                 cpubrand,
+                app.sys.cpus().len(),
                 System::cpu_arch(),
-                app.sys.cpus().len()
             )
         };
         text.push_str(&app.displays);
