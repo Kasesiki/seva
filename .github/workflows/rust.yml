@@ -21,6 +21,7 @@ jobs:
       - name: Build
         run: |
           rustup target add x86_64-unknown-linux-musl && make
+          cp target/x86_64-unknown-linux-musl/release/seva x86_64-unknown-linux-musl-seva
         
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -32,4 +33,4 @@ jobs:
           generate_release_notes: true
           body_path: "changelog/v${{ steps.get_version.outputs.VERSION }}.md"
           files: |
-            target/x86_64-unknown-linux-musl/release/seva
+            x86_64-unknown-linux-musl-seva
