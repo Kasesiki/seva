@@ -168,14 +168,13 @@ impl EDID {
 
         let mut descriptors = vec![];
         let mut resolution = None;
-        
 
         if let Some(x) = display_tag_parse(&edidvec[0x48..=0x59]) {
             if let DisplayTag::DisplayRangeLimit((_, max)) = x {
-                let mut vert = (edidvec[0x48+8] as u32) * 1000 / max as u32;
+                let mut vert = (edidvec[0x48 + 8] as u32) * 1000 / max as u32;
                 for (id, i) in verts.iter().enumerate() {
                     if *i > vert && id != 0 {
-                        vert = verts[id-1]
+                        vert = verts[id - 1]
                     }
                 }
                 if !verts.contains(&vert) {
@@ -214,7 +213,7 @@ impl EDID {
                 Some(String::from(aspect_ratio))
             },
             display_descriptors: descriptors,
-            resolution
+            resolution,
         })
     }
 }

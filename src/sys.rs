@@ -384,7 +384,11 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                     let f_name = dir.file_name();
                     let name = f_name.to_string_lossy();
                     if name.starts_with(ctrl.name()?) {
-                        disk_size += fs::read_to_string(Path::new(&format!("/sys/block/{}/size", name)))?.trim().parse::<u64>()? * 512;
+                        disk_size +=
+                            fs::read_to_string(Path::new(&format!("/sys/block/{}/size", name)))?
+                                .trim()
+                                .parse::<u64>()?
+                                * 512;
                     }
                 }
 
@@ -415,10 +419,9 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
     Ok(result)
 }
 
-
 pub struct Hdaudio {
     pub vendor_name: Option<String>,
-    pub chip_name: Option<String>
+    pub chip_name: Option<String>,
 }
 
 pub fn take_sys_hdaudio() -> anyhow::Result<Vec<Hdaudio>> {
@@ -432,7 +435,7 @@ pub fn take_sys_hdaudio() -> anyhow::Result<Vec<Hdaudio>> {
         let vendor_name = fs::read_to_string(&p).ok().map(|f| f.trim().to_owned());
         v.push(Hdaudio {
             chip_name,
-            vendor_name
+            vendor_name,
         });
     }
     Ok(v)

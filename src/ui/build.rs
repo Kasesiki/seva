@@ -71,10 +71,20 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             )
         };
         text.push_str(&app.displays);
-        text.push_str(&app.hdaudio.iter().enumerate().fold(String::new(), |mut acc, (id, f)| {
-            acc.push_str(&format!("audio{}: {} {}\n", id, f.vendor_name.as_deref().unwrap_or_default(), f.chip_name.as_deref().unwrap_or_default()));
-            acc
-        }));
+        text.push_str(
+            &app.hdaudio
+                .iter()
+                .enumerate()
+                .fold(String::new(), |mut acc, (id, f)| {
+                    acc.push_str(&format!(
+                        "audio{}: {} {}\n",
+                        id,
+                        f.vendor_name.as_deref().unwrap_or_default(),
+                        f.chip_name.as_deref().unwrap_or_default()
+                    ));
+                    acc
+                }),
+        );
         Paragraph::new(text)
             .wrap(Wrap { trim: true })
             .block(normal_block("product"))
@@ -237,7 +247,11 @@ pub fn trend_ui(
             "{:<7}  {:<11}{:<22}{:<9}{}",
             process.pid.as_u32(),
             format!("{:.2}%", process.cpu_usage),
-            format!("{}({})", HumanBytes(process.memory), HumanBytes(process.virtual_memory)),
+            format!(
+                "{}({})",
+                HumanBytes(process.memory),
+                HumanBytes(process.virtual_memory)
+            ),
             FmtTime(process.run_time),
             process.cmd
         )

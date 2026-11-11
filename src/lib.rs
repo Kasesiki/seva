@@ -19,7 +19,10 @@ use crate::{
     client::{
         server::{self, Serve},
         system::{Config, FmtTime, SystemLine, command_runs, from_osstring},
-    }, edid::{DisplayTag, find_edid}, sys::{Disk, Hdaudio, take_sys_disk, take_sys_hdaudio}, ui::build::{Tui, normal_block, set_alert},
+    },
+    edid::{DisplayTag, find_edid},
+    sys::{Disk, Hdaudio, take_sys_disk, take_sys_hdaudio},
+    ui::build::{Tui, normal_block, set_alert},
 };
 use crate::{
     client::{stream::ClientState, system::HumanBytes},
@@ -72,13 +75,26 @@ impl App {
                         _ => {}
                     };
                 }
-                ;
                 result.push_str(&format!(
                     "display{i}: {} {} {}\n",
                     if let Some(name) = productname {
-                        format!("{name}({}{})", &screen.manufacture_pnp, screen.screen_size.map(|f| format!(" {f}in")).unwrap_or_default())
+                        format!(
+                            "{name}({}{})",
+                            &screen.manufacture_pnp,
+                            screen
+                                .screen_size
+                                .map(|f| format!(" {f}in"))
+                                .unwrap_or_default()
+                        )
                     } else {
-                        format!("({}{})", &screen.manufacture_pnp, screen.screen_size.map(|f| format!(" {f}in")).unwrap_or_default())
+                        format!(
+                            "({}{})",
+                            &screen.manufacture_pnp,
+                            screen
+                                .screen_size
+                                .map(|f| format!(" {f}in"))
+                                .unwrap_or_default()
+                        )
                     },
                     refresh_rate,
                     if let Some(color) = &screen.video_input.as_ref().and_then(|f| f.color_depth) {
@@ -127,7 +143,9 @@ impl App {
             System::os_version().unwrap_or(String::from("Unknown os version")),
             self.sys.cpus()[0].brand(),
             Motherboard::new()
-                .and_then(|x| x.name().and_then(|f| if f == "INVALID" { None } else { Some(f) }))
+                .and_then(|x| x
+                    .name()
+                    .and_then(|f| if f == "INVALID" { None } else { Some(f) }))
                 .map(|f| "\nMotherboard: ".to_string() + &f)
                 .unwrap_or("".to_string()),
             System::kernel_version().unwrap_or_default(),
