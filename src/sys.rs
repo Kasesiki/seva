@@ -378,9 +378,14 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                         }
                     })
                 });
+
                 let mut disk_size: u64 = 0;
-                for ns in ctrl.namespaces() {
-                    disk_size += ns.size_bytes();
+                for dir in fs::read_dir("/sys/block")?.flatten() {
+                    let f_name = dir.file_name();
+                    let name = f_name.to_string_lossy();
+                    if name.starts_with(ctrl.name()?) {
+                        disk_size += fs::read_to_string(Path::new(&format!("/sys/block/{}/size", name)))?.trim().parse::<u64>()? * 512;
+                    }
                 }
 
                 let id = if pcie.is_some() {
