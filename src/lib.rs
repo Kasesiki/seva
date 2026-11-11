@@ -19,10 +19,7 @@ use crate::{
     client::{
         server::{self, Serve},
         system::{Config, FmtTime, SystemLine, command_runs, from_osstring},
-    },
-    edid::{DisplayTag, find_edid},
-    sys::{Disk, take_sys_disk},
-    ui::build::{Tui, normal_block, set_alert},
+    }, edid::{DisplayTag, find_edid}, sys::{Disk, Hdaudio, take_sys_disk, take_sys_hdaudio}, ui::build::{Tui, normal_block, set_alert},
 };
 use crate::{
     client::{stream::ClientState, system::HumanBytes},
@@ -50,6 +47,7 @@ pub struct App {
     pub network: Networks,
     pub formats: Format,
     pub disks: Vec<Disk>,
+    pub hdaudio: Vec<Hdaudio>,
     pub command_buf: Option<String>,
     pub displays: String,
 }
@@ -102,6 +100,7 @@ impl App {
             err: None,
             extend: Extend::new()?,
             disks: take_sys_disk()?,
+            hdaudio: take_sys_hdaudio()?,
             config: Config::new(),
             service: Serve::new(vec![]),
             network: Networks::new_with_refreshed_list(),

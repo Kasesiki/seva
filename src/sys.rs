@@ -414,3 +414,26 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
     }
     Ok(result)
 }
+
+
+pub struct Hdaudio {
+    pub vendor_name: Option<String>,
+    pub chip_name: Option<String>
+}
+
+pub fn take_sys_hdaudio() -> anyhow::Result<Vec<Hdaudio>> {
+    let mut v = vec![];
+    for i in fs::read_dir("/sys/bus/hdaudio/devices")?.flatten() {
+        let mut p = i.path();
+        p.push("chip_name");
+        let chip_name = fs::read_to_string(&p).ok().map(|f| f.trim().to_owned());
+        p.pop();
+        p.push("vendor_name");
+        let vendor_name = fs::read_to_string(&p).ok().map(|f| f.trim().to_owned());
+        v.push(Hdaudio {
+            chip_name,
+            vendor_name
+        });
+    }
+    Ok(v)
+}

@@ -71,6 +71,10 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             )
         };
         text.push_str(&app.displays);
+        text.push_str(&app.hdaudio.iter().enumerate().fold(String::new(), |mut acc, (id, f)| {
+            acc.push_str(&format!("audio{}: {} {}\n", id, f.vendor_name.as_deref().unwrap_or_default(), f.chip_name.as_deref().unwrap_or_default()));
+            acc
+        }));
         Paragraph::new(text)
             .wrap(Wrap { trim: true })
             .block(normal_block("product"))
