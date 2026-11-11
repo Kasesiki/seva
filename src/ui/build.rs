@@ -225,15 +225,15 @@ pub fn trend_ui(
     let [process_top, process] =
         Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).areas(process);
 
-    Paragraph::new("   PID      %CPU        MEM           TIME             CMD")
+    Paragraph::new("   PID      %CPU       MEM                   TIME     CMD")
         .render(process_top, buf);
 
     let items = app.extend.processes.iter().map(|process| {
         format!(
-            "{:<9}{:<12}{:<14}{:<17}{}",
+            "{:<7}  {:<11}{:<22}{:<9}{}",
             process.pid.as_u32(),
             format!("{:.2}%", process.cpu_usage),
-            HumanBytes(process.memory),
+            format!("{}({})", HumanBytes(process.memory), HumanBytes(process.virtual_memory)),
             FmtTime(process.run_time),
             process.cmd
         )

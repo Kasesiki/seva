@@ -97,18 +97,18 @@ impl<T: Copy + Into<u64>> std::fmt::Display for FmtTime<T> {
             2 => {
                 let day = (size / 24.0) as usize;
                 if day > 0 {
-                    pri = format!("{day}day{}hour", (size as usize) - day * 24);
+                    pri = format!("{day}d{}h", (size as usize) - day * 24);
                 } else {
                     let min = size % 1.0 * 60.0;
-                    pri = format!("{}hour{}min", size as usize, min as usize);
+                    pri = format!("{}h{}m", size as usize, min as usize);
                 }
             }
             1 => {
                 let sec = size % 1.0 * 60.0;
-                pri = format!("{}min{}sec", size as usize, sec as usize);
+                pri = format!("{}m{}s", size as usize, sec as usize);
             }
             0 => {
-                pri = format!("{}sec", size as usize);
+                pri = format!("{}s", size as usize);
             }
             _ => todo!(),
         }
