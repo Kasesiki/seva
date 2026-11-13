@@ -460,7 +460,7 @@ pub fn take_sys_network_device() -> anyhow::Result<Vec<Device>> {
 
             ])?;
             let name = ret.split("Network controller: ").last().unwrap();
-            v.push(name.to_string());
+            v.push(name.trim().to_string());
         }
     }
     Ok(v)
