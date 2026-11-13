@@ -492,9 +492,9 @@ pub fn take_sys_device() -> anyhow::Result<Vec<Device>> {
             let vendor = fs::read_to_string(&readpath)?;
             let _vendor = &vendor.trim()[2..];
             if let Some(devices) = ids.get(_vendor) {
-                v.push(Network((devices.0.clone(), devices.1.iter().filter(|f| f.0 == d).last().unwrap_or(&(String::new(), String::from("Unknown Device"))).1.clone())));
+                v.push(Network((devices.0.clone(), devices.1.iter().filter(|f| f.0 == d).last().unwrap_or(&(String::new(), d.to_string())).1.clone())));
             } else {
-                v.push(Network((String::from("Unknown Vendor"), String::from("Unknown Device"))));
+                v.push(Network((_vendor.to_string(), d.to_string())));
             }
         }
     }
