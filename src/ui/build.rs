@@ -15,10 +15,7 @@ use std::{io, ops::Deref, vec};
 use sysinfo::{Cpu, Motherboard, System};
 
 use crate::{
-    App,
-    client::system::{DiskBytes, FmtTime, HumanBytes, command_runs},
-    sys::{ModernDmiDecodedData, decode_dmi},
-    ui::layout::{info_layout, main_layout, trend_layout},
+    App, client::system::{DiskBytes, FmtTime, HumanBytes, command_runs}, sys::{Device::Network, ModernDmiDecodedData, decode_dmi}, ui::layout::{info_layout, main_layout, trend_layout},
 };
 
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
@@ -86,9 +83,11 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 }),
         );
         text.push_str(&app.devices.iter().enumerate().fold(String::new(), |mut acc, (id, f)| {
-                    acc.push_str(&format!(
-                        "network{id}: {f}\n",
-                    ));
+            match f {
+                Network((vendor, device)) => {
+                    acc.push_str(&format!("network{id}: {vendor} {device}\n"));
+                }
+            }
                     acc
                 }));
         Paragraph::new(text)

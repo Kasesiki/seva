@@ -1,7 +1,5 @@
 use std::{
-    fs,
-    io::{self},
-    path::{Path, PathBuf},
+    collections::HashMap, fs, io::{self}, path::{Path, PathBuf},
 };
 
 use dmidecode::{
@@ -9,7 +7,7 @@ use dmidecode::{
 };
 use libnvme::{NvmeVersion, SmartLog};
 
-use crate::client::system::{DiskBytes, command_runs};
+use crate::{client::system::{DiskBytes, command_runs}, sys::Device::Network};
 
 const PCI_DEVICES_ROOT: &str = "/sys/bus/pci/devices";
 const DMI_ENTRY_POINT_PATH: &str = "/sys/firmware/dmi/tables/smbios_entry_point";
@@ -441,27 +439,70 @@ pub fn take_sys_hdaudio() -> anyhow::Result<Vec<Hdaudio>> {
     Ok(v)
 }
 
-pub type Device = String;
+#[derive(Debug)]
+pub enum Device {
+    // vendor name, device name
+    Network((String, String)),
 
-pub fn take_sys_network_device() -> anyhow::Result<Vec<Device>> {
+}
+
+pub fn take_sys_device() -> anyhow::Result<Vec<Device>> {
     let mut v = vec![];
+    // <vendor id, (vendor name, [(device id, device name)])> 
+    let mut ids: HashMap<String, (String, Vec<(String, String)>)> = HashMap::new();
+    {
+        let ids_r = fs::read_to_string("/usr/share/hwdata/pci.ids")?;
+        let mut cache_vendor = String::new();
+        ids_r.split("\n").into_iter().for_each(|f| {
+            if f.len() == 0 {
+                return
+            }
+            let b = f.as_bytes()[0] as char;
+            if b == '#' {
+                return
+            }
+            if b as u8 >= b'0' && b as u8 <= b'9' {
+                
+                let vendor = f.splitn(2, "  ").collect::<Vec<&str>>();
+                let vendorid = vendor.first().unwrap().to_string();
+                
+                cache_vendor = vendorid.clone();
+                ids.insert(vendorid, (vendor.last().unwrap().trim().to_string(), vec![]));
+            } else if f.starts_with("	") {
+                let device = f.trim().splitn(2, "  ").collect::<Vec<&str>>();
+                let deviceid = device.first().unwrap().to_string();
+                ids.get_mut(&cache_vendor).unwrap().1.push((deviceid, device.last().unwrap().to_string()));
+            }
+        });
+    }
+
     for i in fs::read_dir("/sys/class/net")?.flatten() {
         if i.metadata()?.is_symlink() {
-            let mut readpath = fs::read_link(i.path())?;
+            let mut readpath = fs::canonicalize(i.path())?;
             if readpath.to_string_lossy().contains("virtual") {
                 continue;
             }
             readpath.pop();
             readpath.pop();
-            let r = readpath.file_name().unwrap().to_string_lossy();
-            let devicename = r.splitn(2, ":").last().unwrap();
-            let ret = command_runs(&[
-                &["lspci", "-s", devicename],
-
-            ])?;
-            let name = ret.split("Network controller: ").last().unwrap();
-            v.push(name.trim().to_string());
+            readpath.push("device");
+            let device = fs::read_to_string(&readpath)?;
+            let d = &device.trim()[2..];
+            readpath.pop();
+            readpath.push("vendor");
+            let vendor = fs::read_to_string(&readpath)?;
+            let _vendor = &vendor.trim()[2..];
+            if let Some(devices) = ids.get(_vendor) {
+                v.push(Network((devices.0.clone(), devices.1.iter().filter(|f| f.0 == d).last().unwrap_or(&(String::new(), String::from("Unknown Device"))).1.clone())));
+            } else {
+                v.push(Network((String::from("Unknown Vendor"), String::from("Unknown Device"))));
+            }
         }
     }
     Ok(v)
 }
+
+// pub fn take_sys_network_device() -> anyhow::Result<Vec<Device>> {
+//     let mut v = vec![];
+
+//     Ok(v)
+// }
