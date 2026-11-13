@@ -440,3 +440,28 @@ pub fn take_sys_hdaudio() -> anyhow::Result<Vec<Hdaudio>> {
     }
     Ok(v)
 }
+
+pub type Device = String;
+
+pub fn take_sys_network_device() -> anyhow::Result<Vec<Device>> {
+    let mut v = vec![];
+    for i in fs::read_dir("/sys/class/net")?.flatten() {
+        if i.metadata()?.is_symlink() {
+            let mut readpath = fs::read_link(i.path())?;
+            if readpath.to_string_lossy().contains("virtual") {
+                continue;
+            }
+            readpath.pop();
+            readpath.pop();
+            let r = readpath.file_name().unwrap().to_string_lossy();
+            let devicename = r.splitn(2, ":").last().unwrap();
+            let ret = command_runs(&[
+                &["lspci", "-s", devicename],
+
+            ])?;
+            let name = ret.split("Network controller: ").last().unwrap();
+            v.push(name.to_string());
+        }
+    }
+    Ok(v)
+}

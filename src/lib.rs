@@ -19,10 +19,7 @@ use crate::{
     client::{
         server::{self, Serve},
         system::{Config, FmtTime, SystemLine, command_runs, from_osstring},
-    },
-    edid::{DisplayTag, find_edid},
-    sys::{Disk, Hdaudio, take_sys_disk, take_sys_hdaudio},
-    ui::build::{Tui, normal_block, set_alert},
+    }, edid::{DisplayTag, find_edid}, sys::{Device, Disk, Hdaudio, take_sys_disk, take_sys_hdaudio, take_sys_network_device}, ui::build::{Tui, normal_block, set_alert},
 };
 use crate::{
     client::{stream::ClientState, system::HumanBytes},
@@ -53,6 +50,7 @@ pub struct App {
     pub hdaudio: Vec<Hdaudio>,
     pub command_buf: Option<String>,
     pub displays: String,
+    pub devices: Vec<Device>,
 }
 
 impl App {
@@ -108,6 +106,7 @@ impl App {
         } else {
             String::new()
         };
+        let devices = take_sys_network_device()?;
         Ok(App {
             state: ClientState::Main,
             exit: false,
@@ -123,6 +122,7 @@ impl App {
             formats: Format::default(),
             command_buf: None,
             displays,
+            devices
         }
         .once())
     }

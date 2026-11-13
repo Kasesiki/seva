@@ -1,4 +1,4 @@
-use seva::ui::build::Tui;
+use seva::{ui::build::Tui};
 
 fn main() {
     let mut app = seva::App::new().expect("Create App Error");

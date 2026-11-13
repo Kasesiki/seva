@@ -85,6 +85,12 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                     acc
                 }),
         );
+        text.push_str(&app.devices.iter().enumerate().fold(String::new(), |mut acc, (id, f)| {
+                    acc.push_str(&format!(
+                        "network{id}: {f}\n",
+                    ));
+                    acc
+                }));
         Paragraph::new(text)
             .wrap(Wrap { trim: true })
             .block(normal_block("product"))
