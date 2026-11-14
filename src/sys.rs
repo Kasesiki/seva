@@ -451,7 +451,9 @@ pub fn take_sys_device() -> anyhow::Result<Vec<Device>> {
     // <vendor id, (vendor name, [(device id, device name)])> 
     let mut ids: HashMap<String, (String, Vec<(String, String)>)> = HashMap::new();
     {
-        let ids_r = fs::read_to_string("/usr/share/hwdata/pci.ids")?;
+        let ids_r = fs::read_to_string("/usr/share/hwdata/pci.ids")
+            .or(fs::read_to_string("/usr/share/misc/pci.ids"))
+            .or(fs::read_to_string("/usr/share/pci.ids"))?;
         let mut cache_vendor = String::new();
         ids_r.split("\n").into_iter().for_each(|f| {
             if f.len() == 0 {

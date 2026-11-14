@@ -31,7 +31,7 @@ pub mod edid;
 pub mod sys;
 pub mod ui;
 
-const APP_VERSION: &str = "1.2.2";
+const APP_VERSION: &str = "1.2.3";
 
 unsafe impl Send for App {}
 
@@ -106,7 +106,13 @@ impl App {
         } else {
             String::new()
         };
-        let devices = take_sys_device()?;
+        let devices = match take_sys_device() {
+            Ok(v) => v,
+            Err(e) => {
+                println!("scan sys device error: {e}");
+                vec![]
+            }
+        };
         Ok(App {
             state: ClientState::Main,
             exit: false,
