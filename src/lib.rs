@@ -16,7 +16,7 @@ use crate::{
     client::{
         server::{self, Serve},
         system::{Config, FmtTime, SystemLine, command_runs, from_osstring},
-    }, edid::{DisplayTag, find_edid}, sys::{Device, Disk, Hdaudio, take_sys_device, take_sys_disk, take_sys_hdaudio}, ui::build::{Tui, normal_block, set_alert},
+    }, edid::{DisplayTag, find_edid}, sys::{Device::Network, Disk, take_sys_device, take_sys_disk, take_sys_hdaudio}, ui::build::{Tui, normal_block, set_alert},
 };
 use crate::{
     client::{stream::ClientState, system::HumanBytes},
@@ -44,10 +44,10 @@ pub struct App {
     pub network: Networks,
     pub formats: Format,
     pub disks: Vec<Disk>,
-    pub hdaudio: Vec<Hdaudio>,
+    pub hdaudio: String,
     pub command_buf: Option<String>,
     pub displays: String,
-    pub devices: Vec<Device>,
+    pub devices: String,
 }
 
 impl App {
@@ -118,14 +118,31 @@ impl App {
             err: None,
             extend: Extend::new()?,
             disks: take_sys_disk()?,
-            hdaudio: take_sys_hdaudio()?,
+            hdaudio: take_sys_hdaudio()?.iter()
+                .enumerate()
+                .fold(String::new(), |mut acc, (id, f)| {
+                    acc.push_str(&format!(
+                        "audio{}: {} {}\n",
+                        id,
+                        f.vendor_name.as_deref().unwrap_or_default(),
+                        f.chip_name.as_deref().unwrap_or_default()
+                    ));
+                    acc
+                }),
             config: Config::new(),
             service: Serve::new(vec![]),
             network: Networks::new_with_refreshed_list(),
             formats: Format::default(),
             command_buf: None,
             displays,
-            devices
+            devices: devices.iter().enumerate().fold(String::new(), |mut acc, (id, f)| {
+            match f {
+                Network((vendor, device)) => {
+                    acc.push_str(&format!("network{id}: {vendor} {device}\n"));
+                }
+            }
+                    acc
+                })
         }
         .once())
     }
@@ -313,8 +330,14 @@ impl App {
     }
 
     pub fn run(&mut self, mut terminal: Tui) -> anyhow::Result<()> {
+        let mut before_timer = std::time::Instant::now();
         loop {
-            self.flash()?;
+            let new_timer = std::time::Instant::now();
+            if new_timer - before_timer > Duration::from_millis(1000) {
+                self.flash()?;
+                before_timer = new_timer;
+            }
+            
             if self.exit {
                 break;
             }
@@ -407,7 +430,7 @@ pub fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
         if key.code == KeyCode::Tab {
             crate::client::stream::reset_state(&mut main.state);
         } else if key.code == KeyCode::Enter {
-            main.flash()?;
+            //main.flash()?;
         }
 
         let state = &main.state;
