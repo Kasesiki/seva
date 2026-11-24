@@ -6,10 +6,7 @@ use crossterm::event::{
     KeyEvent, KeyEventKind, KeyModifiers,
 };
 use ratatui::{
-    style::Style,
-    symbols::{self, line::DOUBLE_VERTICAL, merge::MergeStrategy},
-    text::Line,
-    widgets::{LineGauge, Paragraph},
+    style::Style, symbols::{self, line::DOUBLE_VERTICAL, merge::MergeStrategy}, text::Line, widgets::{LineGauge, Paragraph, Wrap},
 };
 use sysinfo::{
     Disks, Motherboard, Networks, Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System,
@@ -143,8 +140,8 @@ impl App {
             .block(normal_block("SEVA Control")),
         );
 
-        self.formats.os_message_format = format!(
-            "os: {}-{}\ncpu name: {}{}\nkernel version: {}\nhost name: {}\nup time: {}\n{}\n",
+        let f = format!(
+            "os: {}-{}\ncpu name: {}{}\nkernel version: {}\nhost name: {}\nup time: {}\n{}\n{}",
             System::name().unwrap_or_default(),
             System::os_version().unwrap_or(String::from("Unknown os version")),
             self.sys.cpus()[0].brand(),
@@ -158,13 +155,16 @@ impl App {
             System::host_name().unwrap_or(String::from("linux")),
             FmtTime(System::uptime()),
             self.extend.package_text,
-        );
+            gpu.iter().enumerate().fold(String::new(), |mut acc, (i, dev)| {
+                if let Some(name) = &dev.device_name {
+                    acc += &format!("gpu {}: {}\n", i, name);
+                }
+                acc
+            }));
+        self.formats.os_message_len = f.lines().collect::<Vec<&str>>().len();
 
-        for (i, dev) in gpu.iter().enumerate() {
-            if let Some(name) = &dev.device_name {
-                self.formats.os_message_format += &format!("gpu {}: {}\n", i, name);
-            }
-        }
+        self.formats.os_message_format = Rc::new(Paragraph::new(f).wrap(Wrap { trim: true })
+        .block(normal_block("os")));
 
         self.flash().unwrap();
 
@@ -341,7 +341,8 @@ impl App {
 
 #[derive(Default)]
 pub struct Format {
-    os_message_format: String,
+    os_message_format: Rc<Paragraph<'static>>,
+    os_message_len: usize,
     tab: Rc<Paragraph<'static>>,
     cpu_line: Rc<LineGauge<'static>>,
     mem_line: Rc<LineGauge<'static>>,

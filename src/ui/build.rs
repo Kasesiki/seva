@@ -282,12 +282,7 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         area,
         buf,
         items.len(),
-        app.formats
-            .os_message_format
-            .lines()
-            .collect::<Vec<&str>>()
-            .len()
-            + 2,
+        app.formats.os_message_len + 2,
     );
 
     List::new(items)
@@ -334,10 +329,7 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         .alignment(ratatui::layout::HorizontalAlignment::Right)
         .render(cpu, buf);
 
-    Paragraph::new(app.formats.os_message_format.clone())
-        .wrap(Wrap { trim: true })
-        .block(normal_block("os"))
-        .render(os, buf);
+    app.formats.os_message_format.deref().render(os, buf);
 
     let (a, b) = if buf.area.as_size().height > 25 {
         short_process(app)
