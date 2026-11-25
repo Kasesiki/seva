@@ -15,21 +15,16 @@ use std::{io, ops::Deref, vec};
 use sysinfo::{Cpu, Motherboard, System};
 
 use crate::{
-    App, client::system::{DiskBytes, FmtTime, HumanBytes, command_runs}, sys::{ModernDmiDecodedData, decode_dmi}, ui::layout::{info_layout, main_layout, trend_layout},
+    App,
+    client::system::{DiskBytes, FmtTime, HumanBytes},
+    sys::{ModernDmiDecodedData, decode_dmi},
+    ui::layout::{info_layout, main_layout, trend_layout},
 };
 
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
 
 pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-    let cache;
-    if let Ok(c) = command_runs(&[&["lscpu"], &["grep", "^L"]]) {
-        cache = c.replace(" ", "");
-    } else {
-        cache = String::from("无法获取缓存信息");
-    }
-
-    let (hello, product, cache_rect, disk, memory) =
-        info_layout(area, buf, cache.lines().collect::<Vec<&str>>().len());
+    let (hello, product, cache_rect, disk, memory) = info_layout(area, buf, app.formats.cache_len);
 
     let cpubrand = app.sys.cpus()[0].brand();
     let dmi = decode_dmi();
@@ -71,17 +66,11 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         text.push_str(&app.hdaudio);
         text.push_str(&app.devices);
 
-
-
-
         Paragraph::new(text)
             .wrap(Wrap { trim: true })
             .block(normal_block("product"))
             .render(product, buf);
-        Paragraph::new(cache)
-            .wrap(Wrap { trim: true })
-            .block(normal_block("cache"))
-            .render(cache_rect, buf);
+        app.formats.cache_message.deref().render(cache_rect, buf);
     }
 
     let disk_test = app
@@ -200,7 +189,7 @@ pub fn trend_ui(
     let margin = Margin::new(1, 1);
     disk = disk.inner(margin);
 
-    let mut cpu_iter = app.sys.cpus().iter();
+    let cpu_iter = app.sys.cpus().iter();
 
     let mut disks: [Rect; 3] = Layout::horizontal([
         Constraint::Fill(1),
@@ -210,9 +199,8 @@ pub fn trend_ui(
     .areas(disk);
 
     let mut cursor = 0;
-    let mut i = 1;
 
-    while let Some(cpu) = cpu_iter.next() {
+    for (i, cpu) in (1..).zip(cpu_iter) {
         if cursor == disks.len() {
             cursor = 0;
         }
@@ -222,7 +210,6 @@ pub fn trend_ui(
         once_cpu(i, cpu, disk_c, buf);
         *disk = disk_f;
         cursor += 1;
-        i += 1;
     }
 
     let [process_top, process] =
@@ -262,12 +249,8 @@ pub fn main_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
         ));
     }
 
-    let (tabs, line, os, network, process) = main_layout(
-        area,
-        buf,
-        items.len(),
-        app.formats.os_message_len + 2,
-    );
+    let (tabs, line, os, network, process) =
+        main_layout(area, buf, items.len(), app.formats.os_message_len + 2);
 
     List::new(items)
         .block(normal_block("network"))

@@ -135,7 +135,8 @@ pub fn command_runs(cmds: &[&[&str]]) -> anyhow::Result<String> {
             if len > 1 {
                 cmd.args(&args[1..]);
             }
-            if let Some(before) = child {
+            if let Some(mut before) = child {
+                before.wait()?;
                 cmd.stdin(Stdio::from(before.stdout.unwrap()));
             }
             child = Some(cmd.stdout(Stdio::piped()).spawn()?);
@@ -144,7 +145,8 @@ pub fn command_runs(cmds: &[&[&str]]) -> anyhow::Result<String> {
     let last = cmds[cmds.len() - 1];
     let mut cmd = Command::new(last[0]);
     cmd.args(&last[1..]);
-    if let Some(before) = child {
+    if let Some(mut before) = child {
+        before.wait()?;
         cmd.stdin(before.stdout.unwrap());
     }
 

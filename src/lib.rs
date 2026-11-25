@@ -6,21 +6,22 @@ use crossterm::event::{
     KeyEvent, KeyEventKind, KeyModifiers,
 };
 use ratatui::{
-    style::Style, symbols::{self, line::DOUBLE_VERTICAL, merge::MergeStrategy}, text::Line, widgets::{LineGauge, Paragraph, Wrap},
+    style::Style,
+    symbols::{self, line::DOUBLE_VERTICAL, merge::MergeStrategy},
+    text::Line,
+    widgets::{LineGauge, Paragraph, Wrap},
 };
-use sysinfo::{
-    Disks, Motherboard, Networks, Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System,
-};
+use sysinfo::{Motherboard, Networks, Pid, Process, ProcessRefreshKind, ProcessesToUpdate, System};
 
+use crate::{client::stream::ClientState, sys::get_gpu};
 use crate::{
     client::{
         server::{self, Serve},
         system::{Config, FmtTime, SystemLine, command_runs, from_osstring},
-    }, edid::{DisplayTag, find_edid}, sys::{Device::Network, Disk, take_sys_device, take_sys_disk, take_sys_hdaudio}, ui::build::{Tui, normal_block, set_alert},
-};
-use crate::{
-    client::{stream::ClientState, system::HumanBytes},
-    sys::get_gpu,
+    },
+    edid::{DisplayTag, find_edid},
+    sys::{Device::Network, Disk, take_sys_device, take_sys_disk, take_sys_hdaudio},
+    ui::build::{Tui, normal_block, set_alert},
 };
 
 pub mod client;
@@ -53,7 +54,7 @@ pub struct App {
 impl App {
     pub fn new() -> Result<App, anyhow::Error> {
         let screens = find_edid().unwrap_or_default();
-        let displays = if screens.len() != 0 {
+        let displays = if screens.is_empty() {
             let mut result = String::new();
             for (i, screen) in screens.iter().enumerate() {
                 let mut productname = None;
@@ -75,7 +76,7 @@ impl App {
                     if let Some(name) = productname {
                         format!(
                             "{name}({}{})",
-                            &screen.manufacture_pnp,
+                            screen.manufacture_pnp,
                             screen
                                 .screen_size
                                 .map(|f| format!(" {f}in"))
@@ -84,7 +85,7 @@ impl App {
                     } else {
                         format!(
                             "({}{})",
-                            &screen.manufacture_pnp,
+                            screen.manufacture_pnp,
                             screen
                                 .screen_size
                                 .map(|f| format!(" {f}in"))
@@ -118,9 +119,9 @@ impl App {
             err: None,
             extend: Extend::new()?,
             disks: take_sys_disk()?,
-            hdaudio: take_sys_hdaudio()?.iter()
-                .enumerate()
-                .fold(String::new(), |mut acc, (id, f)| {
+            hdaudio: take_sys_hdaudio()?.iter().enumerate().fold(
+                String::new(),
+                |mut acc, (id, f)| {
                     acc.push_str(&format!(
                         "audio{}: {} {}\n",
                         id,
@@ -128,21 +129,25 @@ impl App {
                         f.chip_name.as_deref().unwrap_or_default()
                     ));
                     acc
-                }),
+                },
+            ),
             config: Config::new(),
             service: Serve::new(vec![]),
             network: Networks::new_with_refreshed_list(),
             formats: Format::default(),
             command_buf: None,
             displays,
-            devices: devices.iter().enumerate().fold(String::new(), |mut acc, (id, f)| {
-            match f {
-                Network((vendor, device)) => {
-                    acc.push_str(&format!("network{id}: {vendor} {device}\n"));
-                }
-            }
+            devices: devices
+                .iter()
+                .enumerate()
+                .fold(String::new(), |mut acc, (id, f)| {
+                    match f {
+                        Network((vendor, device)) => {
+                            acc.push_str(&format!("network{id}: {vendor} {device}\n"));
+                        }
+                    }
                     acc
-                })
+                }),
         }
         .once())
     }
@@ -163,25 +168,43 @@ impl App {
             System::os_version().unwrap_or(String::from("Unknown os version")),
             self.sys.cpus()[0].brand(),
             Motherboard::new()
-                .and_then(|x| x
-                    .name()
-                    .and_then(|f| if f == "INVALID" { None } else { Some(f) }))
+                .and_then(|x| x.name().filter(|f| f != "INVALID"))
                 .map(|f| "\nMotherboard: ".to_string() + &f)
                 .unwrap_or("".to_string()),
             System::kernel_version().unwrap_or_default(),
             System::host_name().unwrap_or(String::from("linux")),
             FmtTime(System::uptime()),
             self.extend.package_text,
-            gpu.iter().enumerate().fold(String::new(), |mut acc, (i, dev)| {
-                if let Some(name) = &dev.device_name {
-                    acc += &format!("gpu {}: {}\n", i, name);
-                }
-                acc
-            }));
+            gpu.iter()
+                .enumerate()
+                .fold(String::new(), |mut acc, (i, dev)| {
+                    if let Some(name) = &dev.device_name {
+                        acc += &format!("gpu {}: {}\n", i, name);
+                    }
+                    acc
+                })
+        );
         self.formats.os_message_len = f.lines().collect::<Vec<&str>>().len();
 
-        self.formats.os_message_format = Rc::new(Paragraph::new(f).wrap(Wrap { trim: true })
-        .block(normal_block("os")));
+        self.formats.os_message_format = Rc::new(
+            Paragraph::new(f)
+                .wrap(Wrap { trim: true })
+                .block(normal_block("os")),
+        );
+
+        let cache;
+        if let Ok(c) = command_runs(&[&["lscpu"], &["grep", "^L"]]) {
+            cache = c.replace(" ", "");
+        } else {
+            cache = String::from("无法获取缓存信息");
+        }
+        self.formats.cache_len = cache.lines().collect::<Vec<&str>>().len();
+
+        self.formats.cache_message = Rc::new(
+            Paragraph::new(cache)
+                .wrap(Wrap { trim: true })
+                .block(normal_block("cache")),
+        );
 
         self.flash().unwrap();
 
@@ -312,32 +335,27 @@ impl App {
                 .ratio(self.sys.used_swap() as f64 / self.sys.total_swap() as f64),
         );
 
-        self.formats.disk_text = self.extend.disks.iter().fold(String::new(), |acc, disk| {
-            let total_space = disk.total_space();
-            if total_space < 8 * 1024 * 1024 * 1024 {
-                return acc;
-            }
-            acc + &format!(
-                "Disk Name: {:?}\n   file system: {:?}\n   used/total: {}/ {}\n   write/read: {}/ {}\n\n",
-                disk.name(),
-                disk.file_system(),
-                HumanBytes(total_space - disk.available_space()),
-                HumanBytes(total_space),
-                HumanBytes(disk.usage().written_bytes),
-                HumanBytes(disk.usage().read_bytes)
-            )
-        });
+        // self.formats.disk_text = self.extend.disks.iter().fold(String::new(), |acc, disk| {
+        //     let total_space = disk.total_space();
+        //     if total_space < 8 * 1024 * 1024 * 1024 {
+        //         return acc;
+        //     }
+        //     acc + &format!(
+        //         "Disk Name: {:?}\n   file system: {:?}\n   used/total: {}/ {}\n   write/read: {}/ {}\n\n",
+        //         disk.name(),
+        //         disk.file_system(),
+        //         HumanBytes(total_space - disk.available_space()),
+        //         HumanBytes(total_space),
+        //         HumanBytes(disk.usage().written_bytes),
+        //         HumanBytes(disk.usage().read_bytes)
+        //     )
+        // });
     }
 
     pub fn run(&mut self, mut terminal: Tui) -> anyhow::Result<()> {
-        let mut before_timer = std::time::Instant::now();
         loop {
-            let new_timer = std::time::Instant::now();
-            if new_timer - before_timer > Duration::from_millis(1000) {
-                self.flash()?;
-                before_timer = new_timer;
-            }
-            
+            self.flash()?;
+
             if self.exit {
                 break;
             }
@@ -368,9 +386,11 @@ pub struct Format {
     os_message_len: usize,
     tab: Rc<Paragraph<'static>>,
     cpu_line: Rc<LineGauge<'static>>,
+    cache_message: Rc<Paragraph<'static>>,
+    cache_len: usize,
     mem_line: Rc<LineGauge<'static>>,
     swap_line: Rc<LineGauge<'static>>,
-    disk_text: String,
+    _disk_text: String,
 }
 
 #[derive(Default)]
@@ -378,7 +398,7 @@ pub struct Extend {
     pub package_text: String,
     pub trend_sort: String,
     pub space: bool,
-    pub disks: Disks,
+    //pub disks: Disks,
     pub processes: Vec<MutProcess>,
     pub process_filter: Option<String>,
 }
@@ -396,7 +416,7 @@ impl Extend {
             result.package_text += &format!("{} (pacman), ", n.trim());
         }
         result.package_text = result.package_text.trim_end_matches(", ").to_string();
-        result.disks = Disks::new_with_refreshed_list();
+        //result.disks = Disks::new_with_refreshed_list();
         Ok(result)
     }
 }
@@ -414,7 +434,11 @@ pub fn handle_key(main: &mut App, key: KeyEvent) -> anyhow::Result<()> {
             } else if key.code == Backspace {
                 text.pop();
             } else if key.code == Enter {
-                if text[1..].as_bytes() == b"unset" {
+                if text.is_empty() {
+                    main.command_buf = None;
+                    return Ok(());
+                }
+                if &text.as_bytes()[1..] == b"unset" {
                     main.extend.process_filter = None;
                 } else {
                     main.extend.process_filter = Some(text[1..].to_string());
