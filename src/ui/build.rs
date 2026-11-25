@@ -24,7 +24,7 @@ use crate::{
 pub type Tui = Terminal<ratatui::prelude::CrosstermBackend<io::Stdout>>;
 
 pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-    let (hello, product, cache_rect, disk, memory) = info_layout(area, buf, app.formats.cache_len);
+    let (hello, product, disk, memory) = info_layout(area, buf);
 
     let cpubrand = app.sys.cpus()[0].brand();
     let dmi = decode_dmi();
@@ -70,7 +70,6 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
             .wrap(Wrap { trim: true })
             .block(normal_block("product"))
             .render(product, buf);
-        app.formats.cache_message.deref().render(cache_rect, buf);
     }
 
     let disk_test = app
@@ -97,28 +96,17 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                     );
                 }
                 if let Some(smartlog) = &f.smartlog {
-
                     acc += &format!(
-                        "\n  Percentage Used: {}%, read/written: {}/{}\n  media error: {}, power cycle/on hour: {} / {}",
+                        "\n  Percentage Used: {}%, read/written: {}/{}\n  media error: {}, power cycle/on hour: {} / {}\n  temperature: {} C, {}",
                         smartlog.percentage_used(),
                         DiskBytes(smartlog.data_units_read() * 512 * 1000),
                         DiskBytes(smartlog.data_units_written() * 512 * 1000),
                         smartlog.media_errors(),
                         smartlog.power_cycles(),
                         smartlog.power_on_hours(),
+                        smartlog.temperature_celsius(),
+                        f.format_pcie.as_deref().unwrap_or_default()
                     );
-                    if let Some(speed) = &f.format_pcie {
-                        acc += &format!(
-                            "\n  temperature: {} C, {}",
-                            smartlog.temperature_celsius(),
-                            speed
-                        );
-                    } else {
-                        acc += &format!(
-                            "\n  temperature: {} C",
-                            smartlog.temperature_celsius(),
-                        );
-                    }
                 }
 
                 acc += "\n"

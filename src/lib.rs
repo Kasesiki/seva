@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, rc::Rc, time::Duration};
+use std::{collections::HashMap, fs, io, rc::Rc, time::Duration};
 
 use crossterm::event::{
     self,
@@ -17,7 +17,7 @@ use crate::{client::stream::ClientState, sys::get_gpu};
 use crate::{
     client::{
         server::{self, Serve},
-        system::{Config, FmtTime, SystemLine, command_runs, from_osstring},
+        system::{Config, FmtTime, SystemLine, from_osstring},
     },
     edid::{DisplayTag, find_edid},
     sys::{Device::Network, Disk, take_sys_device, take_sys_disk, take_sys_hdaudio},
@@ -192,19 +192,19 @@ impl App {
                 .block(normal_block("os")),
         );
 
-        let cache;
-        if let Ok(c) = command_runs(&[&["lscpu"], &["grep", "^L"]]) {
-            cache = c.replace(" ", "");
-        } else {
-            cache = String::from("无法获取缓存信息");
-        }
-        self.formats.cache_len = cache.lines().collect::<Vec<&str>>().len();
+        // let cache;
+        // if let Ok(c) = command_runs(&[&["lscpu"], &["grep", "^L"]]) {
+        //     cache = c.replace(" ", "");
+        // } else {
+        //     cache = String::from("无法获取缓存信息");
+        // }
+        // self.formats.cache_len = cache.lines().collect::<Vec<&str>>().len();
 
-        self.formats.cache_message = Rc::new(
-            Paragraph::new(cache)
-                .wrap(Wrap { trim: true })
-                .block(normal_block("cache")),
-        );
+        // self.formats.cache_message = Rc::new(
+        //     Paragraph::new(cache)
+        //         .wrap(Wrap { trim: true })
+        //         .block(normal_block("cache")),
+        // );
 
         self.flash().unwrap();
 
@@ -386,8 +386,6 @@ pub struct Format {
     os_message_len: usize,
     tab: Rc<Paragraph<'static>>,
     cpu_line: Rc<LineGauge<'static>>,
-    cache_message: Rc<Paragraph<'static>>,
-    cache_len: usize,
     mem_line: Rc<LineGauge<'static>>,
     swap_line: Rc<LineGauge<'static>>,
     _disk_text: String,
@@ -409,11 +407,19 @@ impl Extend {
             package_text: String::from("packages: "),
             ..Default::default()
         };
-        if let Ok(n) = command_runs(&[&["dpkg", "-l"], &["grep", "ii"], &["wc", "-l"]]) {
-            result.package_text += &format!("{} (dpkg), ", n.trim());
+
+        if let Ok(str) = fs::read_to_string("/var/lib/dpkg/status") {
+            let n = str.lines().filter(|p| { p.trim() == "Status: install ok installed" }).collect::<Vec<_>>().len();
+            result.package_text += &format!("{} (dpkg), ", n);
         }
-        if let Ok(n) = command_runs(&[&["pacman", "-Q"], &["wc", "-l"]]) {
-            result.package_text += &format!("{} (pacman), ", n.trim());
+
+        // if let Ok(n) = command_runs(&[&["dpkg", "-l"], &["grep", "ii"], &["wc", "-l"]]) {
+        //     result.package_text += &format!("{} (dpkg), ", n.trim());
+        // }
+
+        if let Ok(dir) = fs::read_dir("/var/lib/pacman/local/") {
+            let n = dir.collect::<Vec<_>>().len();
+            result.package_text += &format!("{} (pacman), ", n-1);
         }
         result.package_text = result.package_text.trim_end_matches(", ").to_string();
         //result.disks = Disks::new_with_refreshed_list();

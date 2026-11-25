@@ -54,21 +54,14 @@ pub fn trend_layout(area: Rect, _buf: &mut ratatui::prelude::Buffer) -> (Rect, R
 pub fn info_layout(
     area: Rect,
     _buf: &mut ratatui::prelude::Buffer,
-    cache_size: usize,
-) -> (Rect, Rect, Rect, Rect, Rect) {
+) -> (Rect, Rect, Rect, Rect) {
     let [hello, area] = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(area);
     let [hello, _] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(3)]).areas(hello);
-    let [motherboard, disk_memory] =
+    let [product, disk_memory] =
         Layout::horizontal([Constraint::Fill(2), Constraint::Fill(3)]).areas(area);
-
-    let [product, cache] = Layout::vertical([
-        Constraint::Fill(1),
-        Constraint::Length(cache_size as u16 + 2),
-    ])
-    .areas(motherboard);
 
     let [memory, disk] =
         Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(disk_memory);
 
-    (hello, product, cache, disk, memory)
+    (hello, product, disk, memory)
 }

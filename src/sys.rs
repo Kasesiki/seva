@@ -374,8 +374,8 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                 let pcie = if let Ok(speed) = fs::read_to_string(&devp) {
                     devp.pop();
                     devp.push("current_link_width");
-                    let width = fs::read_to_string(&devp).unwrap();
-                    Some(format!("{} Width x{}", speed, width))
+                    let width = fs::read_to_string(&devp);
+                    Some(format!("{} Width x{}", speed.trim(), if let Ok(width) = &width { width } else { "" }))
                 } else {
                     None
                 };
