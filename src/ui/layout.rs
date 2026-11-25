@@ -51,10 +51,7 @@ pub fn trend_layout(area: Rect, _buf: &mut ratatui::prelude::Buffer) -> (Rect, R
     (trend, disk, process)
 }
 
-pub fn info_layout(
-    area: Rect,
-    _buf: &mut ratatui::prelude::Buffer,
-) -> (Rect, Rect, Rect, Rect) {
+pub fn info_layout(area: Rect, _buf: &mut ratatui::prelude::Buffer) -> (Rect, Rect, Rect, Rect) {
     let [hello, area] = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(area);
     let [hello, _] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(3)]).areas(hello);
     let [product, disk_memory] =

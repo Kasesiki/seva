@@ -29,7 +29,7 @@ pub mod edid;
 pub mod sys;
 pub mod ui;
 
-const APP_VERSION: &str = "1.2.3";
+const APP_VERSION: &str = "1.2.5";
 
 unsafe impl Send for App {}
 
@@ -54,7 +54,7 @@ pub struct App {
 impl App {
     pub fn new() -> Result<App, anyhow::Error> {
         let screens = find_edid().unwrap_or_default();
-        let displays = if screens.is_empty() {
+        let displays = if !screens.is_empty() {
             let mut result = String::new();
             for (i, screen) in screens.iter().enumerate() {
                 let mut productname = None;
@@ -119,7 +119,7 @@ impl App {
             err: None,
             extend: Extend::new()?,
             disks: take_sys_disk()?,
-            hdaudio: take_sys_hdaudio()?.iter().enumerate().fold(
+            hdaudio: take_sys_hdaudio().unwrap_or_default().iter().enumerate().fold(
                 String::new(),
                 |mut acc, (id, f)| {
                     acc.push_str(&format!(
@@ -325,6 +325,8 @@ impl App {
                 .ratio(self.sys.used_memory() as f64 / self.sys.total_memory() as f64),
         );
 
+        let swap_ratio = self.sys.used_swap() as f64 / self.sys.total_swap() as f64;
+
         self.formats.swap_line = Rc::new(
             LineGauge::default()
                 .block(normal_block("swap").merge_borders(MergeStrategy::Exact))
@@ -332,7 +334,7 @@ impl App {
                 .filled_symbol(symbols::line::DOUBLE_VERTICAL)
                 .unfilled_symbol(symbols::line::DOUBLE_VERTICAL)
                 .label(Line::default())
-                .ratio(self.sys.used_swap() as f64 / self.sys.total_swap() as f64),
+                .ratio(if !swap_ratio.is_nan() { swap_ratio } else { 0.0 }),
         );
 
         // self.formats.disk_text = self.extend.disks.iter().fold(String::new(), |acc, disk| {
@@ -409,7 +411,11 @@ impl Extend {
         };
 
         if let Ok(str) = fs::read_to_string("/var/lib/dpkg/status") {
-            let n = str.lines().filter(|p| { p.trim() == "Status: install ok installed" }).collect::<Vec<_>>().len();
+            let n = str
+                .lines()
+                .filter(|p| p.trim() == "Status: install ok installed")
+                .collect::<Vec<_>>()
+                .len();
             result.package_text += &format!("{} (dpkg), ", n);
         }
 
@@ -419,7 +425,7 @@ impl Extend {
 
         if let Ok(dir) = fs::read_dir("/var/lib/pacman/local/") {
             let n = dir.collect::<Vec<_>>().len();
-            result.package_text += &format!("{} (pacman), ", n-1);
+            result.package_text += &format!("{} (pacman), ", n - 1);
         }
         result.package_text = result.package_text.trim_end_matches(", ").to_string();
         //result.disks = Disks::new_with_refreshed_list();

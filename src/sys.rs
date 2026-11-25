@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs,
     io::{self},
     path::{Path, PathBuf},
@@ -375,7 +374,11 @@ pub fn take_sys_disk() -> anyhow::Result<Vec<Disk>> {
                     devp.pop();
                     devp.push("current_link_width");
                     let width = fs::read_to_string(&devp);
-                    Some(format!("{} Width x{}", speed.trim(), if let Ok(width) = &width { width } else { "" }))
+                    Some(format!(
+                        "{} Width x{}",
+                        speed.trim(),
+                        if let Ok(width) = &width { width } else { "" }
+                    ))
                 } else {
                     None
                 };
@@ -448,85 +451,86 @@ pub enum Device {
     Network((String, String)),
 }
 
-pub fn take_sys_device() -> anyhow::Result<Vec<Device>> {
+pub fn take_sys_device() -> io::Result<Vec<Device>> {
     let mut v = vec![];
-    // <vendor id, (vendor name, [(device id, device name)])>
-    let mut ids: HashMap<String, (String, Vec<(String, String)>)> = HashMap::new();
-    {
-        let ids_r = fs::read_to_string("/usr/share/hwdata/pci.ids")
-            .or(fs::read_to_string("/usr/share/misc/pci.ids"))
-            .or(fs::read_to_string("/usr/share/pci.ids"))?;
-        let mut cache_vendor = String::new();
-        ids_r.split("\n").for_each(|f| {
-            if f.is_empty() {
-                return;
-            }
-            let b = f.as_bytes()[0] as char;
-            if b == '#' {
-                return;
-            }
-            if b as u8 >= b'0' && b as u8 <= b'9' {
-                let vendor = f.splitn(2, "  ").collect::<Vec<&str>>();
-                let vendorid = vendor.first().unwrap().to_string();
+    let mut temp_dev = vec![];
 
-                cache_vendor = vendorid.clone();
-                ids.insert(
-                    vendorid,
-                    (vendor.last().unwrap().trim().to_string(), vec![]),
-                );
-            } else if f.starts_with("	") {
-                let device = f.trim().splitn(2, "  ").collect::<Vec<&str>>();
-                let deviceid = device.first().unwrap().to_string();
-                ids.get_mut(&cache_vendor)
-                    .unwrap()
-                    .1
-                    .push((deviceid, device.last().unwrap().to_string()));
-            }
-        });
+    for i in fs::read_dir("/sys/class/net")?
+        .flatten()
+        .filter(|p| p.metadata().map(|p| p.is_symlink()).is_ok())
+    {
+        let mut readpath = fs::canonicalize(i.path())?;
+        if readpath.to_string_lossy().contains("virtual") {
+            continue;
+        }
+        readpath.pop();
+        readpath.pop();
+        readpath.push("device");
+        let device = match fs::read_to_string(&readpath) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        readpath.pop();
+        readpath.push("vendor");
+        let vendor = match fs::read_to_string(&readpath) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        temp_dev.push((device, vendor));
     }
 
-    for i in fs::read_dir("/sys/class/net")?.flatten() {
-        if i.metadata()?.is_symlink() {
-            let mut readpath = fs::canonicalize(i.path())?;
-            if readpath.to_string_lossy().contains("virtual") {
-                continue;
-            }
-            readpath.pop();
-            readpath.pop();
-            readpath.push("device");
-            let device = match fs::read_to_string(&readpath) {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-            let d = &device.trim()[2..];
-            readpath.pop();
-            readpath.push("vendor");
-            let vendor = match fs::read_to_string(&readpath) {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-            let _vendor = &vendor.trim()[2..];
-            if let Some(devices) = ids.get(_vendor) {
-                v.push(Network((
-                    devices.0.clone(),
-                    devices
-                        .1
-                        .iter()
-                        .rfind(|f| f.0 == d)
-                        .unwrap_or(&(String::new(), d.to_string()))
-                        .1
-                        .clone(),
-                )));
+    let ids_r = fs::read_to_string("/usr/share/hwdata/pci.ids")
+        .or(fs::read_to_string("/usr/share/misc/pci.ids"))
+        .or(fs::read_to_string("/usr/share/pci.ids"))?;
+    let mut cache_vendor = None;
+    ids_r.split("\n").for_each(|f| {
+        if temp_dev.is_empty() {
+            return;
+        }
+        if f.is_empty() {
+            return;
+        }
+        let b = f.as_bytes()[0] as char;
+        if b == '#' {
+            return;
+        }
+        if b as u8 >= b'0' && b as u8 <= b'z' {
+            let vendor = f.splitn(2, "  ").collect::<Vec<&str>>();
+            let vendorid = vendor.first().unwrap().to_string();
+
+            if temp_dev
+                .iter()
+                .find(|p| &p.1.trim()[2..] == vendorid)
+                .is_some()
+            {
+                cache_vendor = Some((vendorid, vendor.last().unwrap().trim().to_string()));
             } else {
-                v.push(Network((_vendor.to_string(), d.to_string())));
+                cache_vendor = None;
+            }
+        } else if let Some(vendor) = &cache_vendor
+            && f.starts_with("	")
+        {
+            let device = f.trim().splitn(2, "  ").collect::<Vec<&str>>();
+            let deviceid = device.first().unwrap().to_string();
+
+            if let Some(cc) = temp_dev
+                .iter()
+                .find(|p| &p.1.trim()[2..] == vendor.0 && &p.0.trim()[2..] == deviceid)
+            {
+                v.push(Network((
+                    vendor.1.clone(),
+                    device.last().unwrap().to_string(),
+                )));
+                let cc = cc.clone();
+                temp_dev = temp_dev
+                    .iter()
+                    .cloned()
+                    .filter(|p| p != &cc)
+                    .collect::<Vec<_>>();
             }
         }
-    }
+    });
+
     Ok(v)
 }
-
-// pub fn take_sys_network_device() -> anyhow::Result<Vec<Device>> {
-//     let mut v = vec![];
-
-//     Ok(v)
-// }

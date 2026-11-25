@@ -1,6 +1,4 @@
-use std::{
-    ffi::{OsStr, OsString},
-};
+use std::ffi::{OsStr, OsString};
 
 use queue::Queue;
 
