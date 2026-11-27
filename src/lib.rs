@@ -117,7 +117,7 @@ impl App {
             sys: System::new_all(),
             sys_line: SystemLine::new(),
             err: None,
-            extend: Extend::new()?,
+            extend: Extend::new(),
             disks: take_sys_disk()?,
             hdaudio: take_sys_hdaudio().unwrap_or_default().iter().enumerate().fold(
                 String::new(),
@@ -404,7 +404,7 @@ pub struct Extend {
 }
 
 impl Extend {
-    pub fn new() -> anyhow::Result<Extend> {
+    pub fn new() -> Extend {
         let mut result = Extend {
             package_text: String::from("packages: "),
             ..Default::default()
@@ -429,7 +429,7 @@ impl Extend {
         }
         result.package_text = result.package_text.trim_end_matches(", ").to_string();
         //result.disks = Disks::new_with_refreshed_list();
-        Ok(result)
+        result
     }
 }
 

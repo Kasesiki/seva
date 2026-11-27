@@ -12,6 +12,7 @@ use ratatui::{
     },
 };
 use std::{io, ops::Deref, vec};
+use std::fmt::Write;
 use sysinfo::{Cpu, Motherboard, System};
 
 use crate::{
@@ -51,6 +52,9 @@ pub fn info_ui(app: &crate::App, area: ratatui::prelude::Rect, buf: &mut ratatui
                 HumanBytes(dmi.memory.max_capacity)
             );
             text += &format!("physical memory slot count: {}\n", dmi.memory.max_slots);
+            if let Some(data) = &dmi.battery {
+                write!(text, "battery design cap: {}mWh\n", data.design_capacity).unwrap();
+            }
             text
         } else {
             format!(

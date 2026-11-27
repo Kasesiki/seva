@@ -5,7 +5,7 @@ use std::{
 };
 
 use dmidecode::{
-    EntryPoint, MalformedStructureError, Structure, Structures, memory_device::MemoryTechnology,
+    EntryPoint, MalformedStructureError, Structure, Structures, memory_device::MemoryTechnology, portable_battery::DesignCapacity,
 };
 use libnvme::{NvmeVersion, SmartLog};
 
@@ -44,15 +44,22 @@ impl DmiDecodedData {
 }
 
 #[derive(Debug, Clone)]
+pub struct Batteryinfo {
+    pub design_capacity: u32
+}
+
+#[derive(Debug, Clone)]
 pub struct ModernDmiDecodedData {
     pub system: ModernSystem,
     pub memory: DmiMemoryInfo,
+    pub battery: Option<Batteryinfo>
 }
 
 impl ModernDmiDecodedData {
     pub fn from_dmidecoded(decoded: &DmiDecodedData) -> Result<Self, MalformedStructureError> {
         let mut system = ModernSystem::default();
         let mut devices = Vec::new();
+        let mut battery = None;
         let mut max_capacity = 0;
         let mut max_slots = 0;
         for structure in decoded.structures() {
@@ -68,6 +75,14 @@ impl ModernDmiDecodedData {
                 Structure::PhysicalMemoryArray(array) => {
                     max_capacity = array.maximum_capacity.unwrap_or_default() as u64 * 1024;
                     max_slots = array.number_of_memory_devices;
+                }
+                Structure::PortableBattery(pbattery) => {
+                    if let DesignCapacity::Data { value, multiplier } = pbattery.design_capacity {
+                        battery = Some(Batteryinfo {
+                            design_capacity: value as u32 * multiplier as u32
+                        });
+                    }
+
                 }
                 Structure::MemoryDevice(device) => {
                     if device.memory_type == dmidecode::memory_device::Type::Unknown {
@@ -115,6 +130,7 @@ impl ModernDmiDecodedData {
                 max_slots,
                 devices,
             },
+            battery: battery,
         })
     }
 }
